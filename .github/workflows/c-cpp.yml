@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ "master" ]
 
+env:
+  VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+
 jobs:
   build:
     runs-on: windows-latest
@@ -28,12 +31,14 @@ jobs:
       shell: bash
 
     - name: Configure with CMake
-      env:
-        VCPKG_ROOT: ${{ github.workspace }}/vcpkg
       run: cmake --preset=vs2022-windows -B out -S .
+
+    - name: Debug VCPKG_ROOT
+      run: |
+        echo "VCPKG_ROOT is set to $VCPKG_ROOT"
+        ls -l $VCPKG_ROOT
+      shell: bash
     
     - name: Build
-      env:
-        VCPKG_ROOT: ${{ github.workspace }}\vcpkg
       run: cmake --build --preset vs2022-windows-release
       shell: bash

@@ -35,4 +35,4 @@ jobs:
       run: cmake --preset=vs2022-windows -B out -S .
     
     - name: Build
-      run: cmake --build --preset vs2022-windows
+      run: cmake --build --preset vs2022-windows-release

@@ -13,7 +13,9 @@ int parse_args(int argc, char** argv);
 
 int main(int argc, char** argv)
 {
+	init_log();
 #ifdef MEMORY_LEAK_CHECK
+	_CrtSetDbgFlag(_CrtSetDbgFlag(_CRTDBG_REPORT_FLAG) & ~_CRTDBG_LEAK_CHECK_DF);
 	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
 	_CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDOUT);
 
@@ -43,17 +45,21 @@ int main(int argc, char** argv)
 		_CrtDumpMemoryLeaks();
 	}
 #endif  // MEMORY_LEAK_CHECK
+
+	stop_log();
 	return ret;
 }
 
 int parse_args(int argc, char** argv)
 {
-	argparse::ArgumentParser program("bgs-asset-studio-cli");
-
 	try
 	{
+		argparse::ArgumentParser program("bgs-asset-studio-cli");
 		program.set_usage_max_line_width(80);
 		program.set_usage_break_on_mutex();
+
+		program.add_argument("-h", "--help").help("Show help message").flag();
+
 		program.add_argument("--dryrun")
 			.flag()
 			.help("Run without making any changes (for testing)");
@@ -81,61 +87,22 @@ int parse_args(int argc, char** argv)
 			.flag()
 			.help("Don't compress DDS textures");
 
-		program.add_argument("files")
-			.remaining()
-			.default_value(vector<filesystem::path>{})
+		program.add_argument("directory")
 			.action(argparse::filepath)
-			.help("Input files to process");
-
-		program.add_argument("--normalmap-regex")
-			.default_value(regex("(_msn|_n).dds$"))
-			.action(argparse::regex_action("normalmap-regex"))
-			.help("regex to match for normal map textures");
-
-		program.add_argument("--glowmap-regex")
-			.default_value(regex("_g.dds$"))
-			.action(argparse::regex_action("glowmap-regex"))
-			.help("regex to match for glow maps textures");
-
-		program.add_argument("--subsurface-regex")
-			.default_value(regex("_sk.dds$"))
-			.action(argparse::regex_action("subsurface-regex"))
-			.help("regex to match for subsurface textures");
-
-		program.add_argument("--metallic-regex")
-			.default_value(regex("_m.dds$"))
-			.action(argparse::regex_action("metallic-regex"))
-			.help("regex to match for metallic textures");
-
-		program.add_argument("--diffuse-regex")
-			.default_value(regex(".dds$"))
-			.action(argparse::regex_action("diffuse-regex"))
-			.help("regex to match for diffuse textures");
-
-		program.add_argument("--texture-process-order")
-			.default_value(
-				vector<string>{ "normalmap", "glowmap", "subsurface", "metallic", "diffuse" })
-			.help(
-				"order in which the textures are processed. Default processes normalmaps first and "
-				"diffuse last.");
+			.required()
+			.help("Input directory to process directory for");
 
 		program.parse_args(argc, argv);
 
-		auto files              = program.get<vector<filesystem::path>>("files");
+		auto directory          = program.get<filesystem::path>("directory");
 		auto max_dds_size       = program.get<int>("--max-dds-size");
 		auto min_dds_size       = program.get<int>("--min-dds-size");
 		auto threads            = program.get<int>("--threads");
 		auto no_dds_compression = program.get<bool>("--no-dds-compression");
 		auto dryrun             = program.get<bool>("--dryrun");
-		auto normalmap_regex    = program.get<regex>("--normalmap-regex");
-		auto glowmap_regex      = program.get<regex>("--glowmap-regex");
-		auto subsurface_regex   = program.get<regex>("--subsurface-regex");
-		auto metallic_regex     = program.get<regex>("--metallic-regex");
-		auto diffuse_regex      = program.get<regex>("--diffuse-regex");
-		auto order              = program.get<vector<string>>("--texture-process-order");
 
-		if (max_dds_size < min_dds_size)
-			throw runtime_error("max-dds-size must be greater or equal to min-dds-size");
+
+		register_assets(directory);
 
 		dbg(foo());
 		dbg(max_dds_size);
@@ -143,8 +110,7 @@ int parse_args(int argc, char** argv)
 		dbg(threads);
 		dbg(no_dds_compression);
 		dbg(dryrun);
-		dbg(files);
-		dbg(order);
+		dbg(directory);
 	}
 	catch (const exception& err)
 	{

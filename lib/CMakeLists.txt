@@ -15,6 +15,7 @@ include(cmake/headerlist.cmake)
 
 find_package(directxtex CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
 
 source_group(
 	TREE
@@ -22,17 +23,17 @@ source_group(
 	FILES
 		${CMAKE_CURRENT_BINARY_DIR}/include/Version.h
 )
-
 add_library(
 	BGSAssetStudioLIB SHARED ${SOURCES} 
 	${CMAKE_CURRENT_BINARY_DIR}/include/Version.h
 	${CMAKE_CURRENT_BINARY_DIR}/version.rc 
 	${CMAKE_SOURCE_DIR}/.clang-format
 )
+target_compile_features(BGSAssetStudioLIB PRIVATE cxx_std_23)
 
 target_compile_definitions(BGSAssetStudioLIB PRIVATE LIBRARY_EXPORTS PUBLIC LIBRARY_EXPORTS)
 
-target_link_libraries(BGSAssetStudioLIB PRIVATE Microsoft::DirectXTex spdlog::spdlog)
+target_link_libraries(BGSAssetStudioLIB PRIVATE Microsoft::DirectXTex spdlog::spdlog nlohmann_json)
 
 target_include_directories(BGSAssetStudioLIB PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -41,4 +42,3 @@ target_include_directories(BGSAssetStudioLIB PUBLIC
 target_precompile_headers(BGSAssetStudioLIB PUBLIC ${CMAKE_SOURCE_DIR}/PCH.h PRIVATE ${CMAKE_SOURCE_DIR}/PCH.h PCH.h)
 
 
-target_compile_features(BGSAssetStudioLIB PRIVATE cxx_std_23)

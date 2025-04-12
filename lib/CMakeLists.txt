@@ -13,6 +13,9 @@ configure_file(
 include(cmake/sourcelist.cmake)
 include(cmake/headerlist.cmake)
 
+find_package(directxtex CONFIG REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
+
 source_group(
 	TREE
 		${CMAKE_CURRENT_BINARY_DIR}
@@ -28,6 +31,8 @@ add_library(
 )
 
 target_compile_definitions(BGSAssetStudioLIB PRIVATE LIBRARY_EXPORTS PUBLIC LIBRARY_EXPORTS)
+
+target_link_libraries(BGSAssetStudioLIB PRIVATE Microsoft::DirectXTex spdlog::spdlog)
 
 target_include_directories(BGSAssetStudioLIB PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include

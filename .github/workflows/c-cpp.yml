@@ -1,0 +1,37 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install clang-format
+      run: sudo apt-get install -y clang-format
+
+    - name: Clang-Format Check
+      run: |
+        FILES=$(find . -type f \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" -o -name "*.c" -o -name "*.cc" \) -not -path "./out/*")
+        echo "$FILES" | while read file; do
+          clang-format --dry-run --Werror "$file"
+        done
+
+    - name: configure
+      run: ./configure
+
+    - name: make
+      run: make
+
+    - name: make check
+      run: make check
+
+    - name: make distcheck
+      run: make distcheck

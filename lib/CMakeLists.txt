@@ -39,3 +39,6 @@ target_include_directories(BGSAssetStudioLIB PUBLIC
     ${CMAKE_CURRENT_BINARY_DIR}/include
 )
 target_precompile_headers(BGSAssetStudioLIB PUBLIC ${CMAKE_SOURCE_DIR}/PCH.h PRIVATE ${CMAKE_SOURCE_DIR}/PCH.h PCH.h)
+
+
+target_compile_features(BGSAssetStudioLIB PRIVATE cxx_std_23)

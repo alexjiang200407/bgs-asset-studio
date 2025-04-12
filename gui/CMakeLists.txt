@@ -15,3 +15,5 @@ target_compile_definitions(BGSAssetStudioGUI PRIVATE UNICODE)
 target_link_libraries(BGSAssetStudioGUI PRIVATE BGSAssetStudioLIB)
 target_precompile_headers(BGSAssetStudioGUI PRIVATE PCH.h)
 COPY_DLL_AND_PDB_TO_EXECUTABLE(BGSAssetStudioGUI BGSAssetStudioLIB)
+
+target_compile_features(BGSAssetStudioGUI PRIVATE cxx_std_23)

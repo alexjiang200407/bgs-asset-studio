@@ -27,11 +27,12 @@ jobs:
         ./vcpkg/bootstrap-vcpkg.sh
       shell: bash
 
-    - name: Set VCPKG_ROOT
-      run: echo "VCPKG_ROOT=${{ github.workspace }}/vcpkg" >> $GITHUB_ENV
-
     - name: Configure with CMake
+      env:
+        VCPKG_ROOT: ${{ github.workspace }}/vcpkg
       run: cmake --preset=vs2022-windows -B out -S .
     
     - name: Build
+      env:
+        VCPKG_ROOT: ${{ github.workspace }}/vcpkg
       run: cmake --build --preset vs2022-windows-release

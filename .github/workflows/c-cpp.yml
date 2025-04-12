@@ -24,14 +24,8 @@ jobs:
           clang-format --dry-run --Werror "$file"
         done
 
-    - name: configure
-      run: ./configure
-
-    - name: make
-      run: make
-
-    - name: make check
-      run: make check
-
-    - name: make distcheck
-      run: make distcheck
+    - name: Configure with CMake
+      run: cmake -B build -S .
+    
+    - name: Build
+      run: cmake --build build

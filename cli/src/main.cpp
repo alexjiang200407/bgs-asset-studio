@@ -1,5 +1,5 @@
-#include <stdio.h>
 #include "BGSAssetStudioLIB.h"
+#include <stdio.h>
 
 #ifdef MEMORY_LEAK_CHECK
 #	define _CRTDBG_MAP_ALLOC

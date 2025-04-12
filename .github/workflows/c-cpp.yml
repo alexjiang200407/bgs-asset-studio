@@ -40,5 +40,5 @@ jobs:
       shell: bash
     
     - name: Build
-      run: cmake --build --preset vs2022-windows-release
+      run: cmake --build out
       shell: bash

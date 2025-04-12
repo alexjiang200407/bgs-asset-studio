@@ -1,0 +1,7 @@
+{
+  "name": "bgs-asset-studio",
+  "description": "Asset optimizer and manager",
+  "dependencies": [
+  ],
+  "builtin-baseline": "b7601ed37e1e1ce11a4f61b4b94a23e39d465f1d"
+}

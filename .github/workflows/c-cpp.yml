@@ -13,10 +13,11 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Clang-Format Check
+    - name: Clang-Format Check (Bash)
+      shell: bash
       run: |
         FILES=$(find . -type f \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" -o -name "*.c" -o -name "*.cc" \) -not -path "./out/*")
-        echo "$FILES" | while read file; do
+        for file in $FILES; do
           clang-format --dry-run --Werror "$file"
         done
 

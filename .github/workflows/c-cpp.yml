@@ -34,5 +34,5 @@ jobs:
     
     - name: Build
       env:
-        VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+        VCPKG_ROOT: ${{ github.workspace }}\vcpkg
       run: cmake --build --preset vs2022-windows-release

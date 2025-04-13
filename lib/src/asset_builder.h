@@ -1,4 +1,5 @@
 #pragma once
+#include "asset.h"
 
 namespace ns
 {
@@ -6,7 +7,7 @@ namespace ns
 	{
 		std::string name;
 		std::string match_str;
-		std::regex  match_regex;
+		std::wregex  match_regex;
 		std::string opaque_format_str;
 		std::string transparent_format_str;
 		DXGI_FORMAT opaque_format      = DXGI_FORMAT_UNKNOWN;
@@ -31,12 +32,12 @@ public:
 	};
 
 public:
-	void               push(const std::filesystem::path& path);
-	void               pop() noexcept;
-	const std::string& preset_name() noexcept;
-	const std::string  asset_type(const std::filesystem::path& path) noexcept;
-	bool               empty() noexcept;
-	DXGI_FORMAT        tex_analysis(const std::filesystem::path& path);
+	void                   push(const std::filesystem::path& path);
+	void                   pop() noexcept;
+	const std::string&     preset_name() noexcept;
+	const std::string      asset_type(const std::filesystem::path& path) noexcept;
+	bool                   empty() noexcept;
+	std::unique_ptr<asset> build(const std::filesystem::path& path);
 
 private:
 	std::stack<ns::asset_studio_meta> tex_mapping_context_stack;

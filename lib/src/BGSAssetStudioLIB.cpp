@@ -1,8 +1,5 @@
 #include "BGSAssetStudioLIB.h"
 #include "asset_builder.h"
-#include <spdlog/sinks/basic_file_sink.h>
-#include <spdlog/sinks/stdout_color_sinks.h>
-#include <spdlog/spdlog.h>
 
 using namespace std;
 namespace fs = std::filesystem;
@@ -65,12 +62,14 @@ void visit_directory(const fs::path& root, asset_builder& builder)
 			{
 				spdlog::trace(
 					"using {} for {}",
-					builder.empty() ? "default" : builder.preset_name(),
+					builder.empty() ? "default" : (char*)builder.preset_name().data(),
 					entry.path().string());
 				spdlog::info(
 					"{} is of type {}",
 					entry.path().string(),
-					builder.asset_type(entry.path()));
+					(char*)builder.asset_type(entry.path()).data());
+
+				builder.build(entry.path());
 			}
 		}
 

@@ -3,6 +3,7 @@
 
 using namespace nlohmann;
 using namespace std;
+using namespace DirectX;
 namespace fs = filesystem;
 
 #define ENUM_AND_STR(val) \
@@ -10,7 +11,7 @@ namespace fs = filesystem;
 		#val, val         \
 	}
 
-static const unordered_map<string, DXGI_FORMAT> dxgi_to_str = {
+static const unordered_map<string_view, DXGI_FORMAT> dxgi_to_str = {
 	ENUM_AND_STR(DXGI_FORMAT_UNKNOWN),
 	ENUM_AND_STR(DXGI_FORMAT_R32G32B32A32_TYPELESS),
 	ENUM_AND_STR(DXGI_FORMAT_R32G32B32A32_FLOAT),
@@ -140,7 +141,7 @@ static const unordered_map<string, DXGI_FORMAT> dxgi_to_str = {
 		val, #val         \
 	}
 
-static const unordered_map<DXGI_FORMAT, string> str_to_format = {
+static const unordered_map<DXGI_FORMAT, string_view> str_to_format = {
 	ENUM_AND_STR(DXGI_FORMAT_UNKNOWN),
 	ENUM_AND_STR(DXGI_FORMAT_R32G32B32A32_TYPELESS),
 	ENUM_AND_STR(DXGI_FORMAT_R32G32B32A32_FLOAT),
@@ -265,6 +266,16 @@ static const unordered_map<DXGI_FORMAT, string> str_to_format = {
 	ENUM_AND_STR(DXGI_FORMAT_FORCE_UINT),
 };
 
+
+static const unordered_map<TEX_ALPHA_MODE, string_view> alpha_mode_str = {
+	ENUM_AND_STR(TEX_ALPHA_MODE_UNKNOWN),
+	ENUM_AND_STR(TEX_ALPHA_MODE_STRAIGHT),
+	ENUM_AND_STR(TEX_ALPHA_MODE_PREMULTIPLIED),
+	ENUM_AND_STR(TEX_ALPHA_MODE_OPAQUE),
+	ENUM_AND_STR(TEX_ALPHA_MODE_CUSTOM),
+};
+
+
 DXGI_FORMAT dxgi_format_from_str(const string& str) noexcept
 {
 	auto it = dxgi_to_str.find(str);
@@ -278,7 +289,7 @@ DXGI_FORMAT dxgi_format_from_str(const string& str) noexcept
 	}
 }
 
-string dxgi_format_to_str(DXGI_FORMAT format) noexcept
+string_view dxgi_format_to_str(DXGI_FORMAT format) noexcept
 {
 	auto it = str_to_format.find(format);
 	if (it != str_to_format.end())
@@ -288,6 +299,19 @@ string dxgi_format_to_str(DXGI_FORMAT format) noexcept
 	else
 	{
 		return "DXGI_FORMAT_UNKNOWN";
+	}
+}
+
+string_view dxgi_alphamode_to_str(TEX_ALPHA_MODE format) noexcept
+{
+	auto it = alpha_mode_str.find(format);
+	if (it != alpha_mode_str.end())
+	{
+		return it->second;
+	}
+	else
+	{
+		return "TEX_ALPHA_MODE_UNKNOWN";
 	}
 }
 
@@ -305,7 +329,7 @@ namespace ns
 		j.at("name").get_to(tex_asset_type.name);
 		j.at("regex").get_to(tex_asset_type.match_str);
 
-		tex_asset_type.match_regex = regex(tex_asset_type.match_str);
+		tex_asset_type.match_regex = wregex(all(tex_asset_type.match_str));
 
 		j.at("dxgi-format-opaque").get_to(tex_asset_type.opaque_format_str);
 		tex_asset_type.opaque_format = dxgi_format_from_str(tex_asset_type.opaque_format_str);
@@ -315,12 +339,15 @@ namespace ns
 			dxgi_format_from_str(tex_asset_type.transparent_format_str);
 	}
 
-	void to_json(json& j, const asset_studio_meta& meta) {}
+	void to_json(json& j, const asset_studio_meta& meta)
+	{
+		j = json{ { "name", meta.name }, { "tex-mappings", meta.mappings } };
+	}
 
 	void from_json(const json& j, asset_studio_meta& meta)
 	{
 		j.at("name").get_to(meta.name);
-		j.at("tex-types").get_to(meta.mappings);
+		j.at("tex-mappings").get_to(meta.mappings);
 	}
 }
 
@@ -331,7 +358,10 @@ void asset_builder::push(const fs::path& p)
 		ifstream ifs(p);
 		json     js = json::parse(ifs);
 
-		tex_mapping_context_stack.push(js);
+		ns::asset_studio_meta meta;
+		js.get_to(meta);
+
+		tex_mapping_context_stack.push(std::move(meta));
 	}
 	catch (const json::exception e)
 	{
@@ -350,16 +380,61 @@ const string asset_builder::asset_type(const fs::path& path) noexcept
 		return "unknown";
 
 	const auto& current_level = tex_mapping_context_stack.top();
+	auto        name_wide     = path.filename().wstring();
 	for_e(entry, current_level.mappings)
 	{
-		if (regex_match(path.filename().string(), entry.match_regex))
+		if (regex_match(name_wide, entry.match_regex))
 		{
 			return entry.name;
 		}
 	}
+
+	if (path.extension() == ".nif")
+	{
+		return "mesh";
+	}
+
 	return "unknown";
 }
 
 bool asset_builder::empty() noexcept { return tex_mapping_context_stack.size() == 0; }
 
-DXGI_FORMAT asset_builder::tex_analysis(const fs::path& p) { return DXGI_FORMAT(); }
+
+unique_ptr<asset> asset_builder::build(const fs::path& path)
+{
+	if (empty())
+		return nullptr;
+
+	const auto& current_level = tex_mapping_context_stack.top();
+	auto        name_wide     = path.filename().wstring();
+
+	for_e(entry, current_level.mappings)
+	{
+		if (regex_match(name_wide, entry.match_regex))
+		{
+			TexMetadata metadata;
+			if (FAILED(GetMetadataFromDDSFile(
+					path.wstring().c_str(),
+					DDS_FLAGS::DDS_FLAGS_NONE,
+					metadata)))
+				throw asset_builder::exception(
+					"Couldn't get the metadata from DDS file {}." + path.string());
+
+			spdlog::info("{}", dxgi_format_to_str(metadata.format));
+
+			auto alphamode = metadata.GetAlphaMode();
+
+			spdlog::info("{}", dxgi_alphamode_to_str(alphamode));
+
+
+			return nullptr;
+		}
+	}
+
+	if (path.extension() == ".nif")
+	{
+		return nullptr;
+	}
+
+	return nullptr;
+}

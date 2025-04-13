@@ -63,7 +63,7 @@ static const std::unordered_map<DXGI_FORMAT, std::string> strToFormatMap = {
 	ENUM_AND_STR(DXGI_FORMAT_D24_UNORM_S8_UINT),
 };
 
-DXGI_FORMAT GetDXGIFormatFromString(const std::string& str)
+DXGI_FORMAT dxgi_format_from_str(const std::string& str)
 {
 	auto it = formatToStrMap.find(str);
 	if (it != formatToStrMap.end())
@@ -76,7 +76,7 @@ DXGI_FORMAT GetDXGIFormatFromString(const std::string& str)
 	}
 }
 
-string DXGIFormatToString(DXGI_FORMAT format)
+string dxgi_format_to_str(DXGI_FORMAT format)
 {
 	auto it = strToFormatMap.find(format);
 	if (it != strToFormatMap.end())
@@ -91,45 +91,43 @@ string DXGIFormatToString(DXGI_FORMAT format)
 
 namespace ns
 {
-	struct TexAssetType
+	struct tex_mapping_context
 	{
-		string      name_match_string;
-		regex       name_match_regex;
+		string      name;
+		string      match_str;
+		regex       match_regex;
 		DXGI_FORMAT opaque_format;
 		DXGI_FORMAT transparent_format;
 	};
 
 	using namespace nlohmann;
-	void to_json(json& j, const TexAssetType& tex_asset_type)
+	void to_json(json& j, const tex_mapping_context& mapping)
 	{
-		j = json{ { "regex", tex_asset_type.name_match_string },
-			      { "dxgi-format-opaque", DXGIFormatToString(tex_asset_type.opaque_format) },
-			      { "dxgi-format-transparent",
-			        DXGIFormatToString(tex_asset_type.transparent_format) } };
+		j = json{ { "name", mapping.name },
+			      { "regex", mapping.match_str },
+			      { "dxgi-format-opaque", dxgi_format_to_str(mapping.opaque_format) },
+			      { "dxgi-format-transparent", dxgi_format_to_str(mapping.transparent_format) } };
 	}
 
-	void from_json(const json& j, TexAssetType& tex_asset_type)
+	void from_json(const json& j, tex_mapping_context& tex_asset_type)
 	{
-		j.at("regex").get_to(tex_asset_type.name_match_string);
+		j.at("name").get_to(tex_asset_type.name);
+		j.at("regex").get_to(tex_asset_type.match_str);
 
-		tex_asset_type.name_match_regex = regex(tex_asset_type.name_match_string);
+		tex_asset_type.match_regex = regex(tex_asset_type.match_str);
 
 		string buf;
 		j.at("dxgi-format-opaque").get_to(buf);
 
-		tex_asset_type.opaque_format = GetDXGIFormatFromString(buf);
+		tex_asset_type.opaque_format = dxgi_format_from_str(buf);
 
 		j.at("dxgi-format-transparent").get_to(buf);
-		tex_asset_type.transparent_format = GetDXGIFormatFromString(buf);
+		tex_asset_type.transparent_format = dxgi_format_from_str(buf);
 	}
 }
 using namespace nlohmann;
-class AssetBuilder
+class asset_builder
 {
-	stack<fs::path>                     path_stack;
-	list<map<string, ns::TexAssetType>> tex_asset_stack;
-	list<vector<string>>                order;
-
 public:
 	void push(const fs::path& p)
 	{
@@ -137,53 +135,50 @@ public:
 		json     js        = json::parse(ifs);
 		json     tex_types = js.at("tex-types");
 
-		map<string, ns::TexAssetType> m;
-		vector<string>                tex_order;
+		vector<ns::tex_mapping_context> m(tex_types.size());
 
 		if (tex_types.is_array())
 		{
+			size_t i = 0;
 			for_e(field, tex_types)
 			{
-				ns::TexAssetType tex_asset;
-				string           name = field.at("name");
-				tex_order.push_back(name);
-				m.insert(make_pair(name, field.get_to(tex_asset)));
+				ns::tex_mapping_context tex_asset;
+				string                  name = field.at("name");
+
+				m[i] = field.get_to(tex_asset);
+				i++;
 			}
 		}
 
 		path_stack.push(p);
-		order.push_back(tex_order);
-		tex_asset_stack.push_back(m);
+		tex_mapping_context_stack.push(m);
 	};
 	void            pop() { path_stack.pop(); };
 	const fs::path& top() { return path_stack.top(); };
-	const string   asset_type(const fs::path& p)
+	const string    asset_type(const fs::path& p)
 	{
-		auto current_level = tex_asset_stack.rbegin();
-		auto current_order = order.rbegin();
-		while (current_level != tex_asset_stack.rend())
+		const auto& current_level = tex_mapping_context_stack.top();
+		for_e(entry, current_level)
 		{
-			for_e(label, *current_order)
-			{ 
-				if (regex_match(p.filename().string(), current_level->at(label).name_match_regex))
-				{
-					return label;
-				}
+			if (regex_match(p.filename().string(), entry.match_regex))
+			{
+				return entry.name;
 			}
-
-			current_level++;
-			current_order++;
 		}
-		return "not found";
+		return "unknown";
 	};
 	bool empty() { return path_stack.size() == 0; };
+
+private:
+	stack<fs::path>                        path_stack;
+	stack<vector<ns::tex_mapping_context>> tex_mapping_context_stack;
 };
 
 void visit_directory(const fs::path& root)
 {
 	try
 	{
-		AssetBuilder builder;
+		asset_builder builder;
 
 		if (fs::exists(root / "bgs-asset-studio-meta.json"))
 		{

@@ -49,8 +49,16 @@ void visit_directory(const fs::path& root)
 
 		if (fs::exists(root / "bgs-asset-studio-meta.json"))
 		{
-			spdlog::info("Found new metadata file");
-			builder.push(root / "bgs-asset-studio-meta.json");
+			try
+			{
+				spdlog::info("Found new metadata file");
+				builder.push(root / "bgs-asset-studio-meta.json");
+			}
+			catch (const asset_builder::exception& err)
+			{
+				spdlog::error("Error: {}", err.what());
+				spdlog::info("Continuing...");
+			}
 		}
 
 		int depth = 0;
@@ -64,8 +72,17 @@ void visit_directory(const fs::path& root)
 					(entry.path() / "bgs-asset-studio-meta.json").string());
 				if (fs::exists(entry.path() / "bgs-asset-studio-meta.json"))
 				{
-					spdlog::info("Found new metadata file");
-					builder.push(entry.path() / "bgs-asset-studio-meta.json");
+					try
+					{
+						auto metadata_filepath = entry.path() / "bgs-asset-studio-meta.json";
+						spdlog::info("Found new metadata file {}", metadata_filepath.string());
+						builder.push(metadata_filepath);
+					}
+					catch (const asset_builder::exception& err)
+					{
+						spdlog::error("Error: {}", err.what());
+						spdlog::info("Continuing...");
+					}
 				}
 			}
 
@@ -82,10 +99,6 @@ void visit_directory(const fs::path& root)
 	catch (const fs::filesystem_error& err)
 	{
 		std::cerr << "Error: " << err.what() << '\n';
-	}
-	catch (const exception& err)
-	{
-		spdlog::error("error: {}", err.what());
 	}
 }
 

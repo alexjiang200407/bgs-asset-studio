@@ -3,13 +3,14 @@
 
 using namespace nlohmann;
 using namespace std;
+namespace fs = filesystem;
 
 #define ENUM_AND_STR(val) \
 	{                     \
 		#val, val         \
 	}
 
-static const std::unordered_map<std::string, DXGI_FORMAT> dxgi_to_str = {
+static const unordered_map<string, DXGI_FORMAT> dxgi_to_str = {
 	ENUM_AND_STR(DXGI_FORMAT_UNKNOWN),
 	ENUM_AND_STR(DXGI_FORMAT_R32G32B32A32_TYPELESS),
 	ENUM_AND_STR(DXGI_FORMAT_R32G32B32A32_FLOAT),
@@ -139,7 +140,7 @@ static const std::unordered_map<std::string, DXGI_FORMAT> dxgi_to_str = {
 		val, #val         \
 	}
 
-static const std::unordered_map<DXGI_FORMAT, std::string> str_to_format = {
+static const unordered_map<DXGI_FORMAT, string> str_to_format = {
 	ENUM_AND_STR(DXGI_FORMAT_UNKNOWN),
 	ENUM_AND_STR(DXGI_FORMAT_R32G32B32A32_TYPELESS),
 	ENUM_AND_STR(DXGI_FORMAT_R32G32B32A32_FLOAT),
@@ -264,7 +265,7 @@ static const std::unordered_map<DXGI_FORMAT, std::string> str_to_format = {
 	ENUM_AND_STR(DXGI_FORMAT_FORCE_UINT),
 };
 
-DXGI_FORMAT dxgi_format_from_str(const std::string& str)
+DXGI_FORMAT dxgi_format_from_str(const string& str)
 {
 	auto it = dxgi_to_str.find(str);
 	if (it != dxgi_to_str.end())
@@ -315,41 +316,55 @@ namespace ns
 	}
 }
 
-void asset_builder::push(const std::filesystem::path& p)
+void asset_builder::push(const fs::path& p)
 {
-	ifstream ifs(p);
-	json     js        = json::parse(ifs);
-	json     tex_types = js.at("tex-types");
-
-	vector<ns::tex_mapping> m(tex_types.size());
-
-	if (tex_types.is_array())
+	try
 	{
-		size_t i = 0;
-		for_e(field, tex_types)
+		ifstream ifs(p);
+		json     js        = json::parse(ifs);
+		json     tex_types = js.at("tex-types");
+
+		vector<ns::tex_mapping> m(tex_types.size());
+
+		if (tex_types.is_array())
 		{
-			ns::tex_mapping tex_asset;
-			string                  name = field.at("name");
+			size_t i = 0;
+			for_e(field, tex_types)
+			{
+				ns::tex_mapping tex_asset;
+				string          name = field.at("name");
 
-			m[i] = field.get_to(tex_asset);
-			i++;
+				m[i] = field.get_to(tex_asset);
+				i++;
+			}
 		}
-	}
 
-	path_stack.push(p);
-	tex_mapping_context_stack.push(m);
+		path_stack.push(p);
+		tex_mapping_context_stack.push(m);
+	}
+	catch (const json::exception e)
+	{
+		throw asset_builder::exception("File at '"s + p.string() + "' has invalid json content "s + e.what());
+	}
 }
 
-void asset_builder::pop() { path_stack.pop(); }
-
-const std::filesystem::path& asset_builder::top() { return path_stack.top(); }
-
-const std::string asset_builder::asset_type(const std::filesystem::path& p)
+void asset_builder::pop()
 {
+	path_stack.pop();
+	tex_mapping_context_stack.pop();
+}
+
+const fs::path& asset_builder::top() { return path_stack.top(); }
+
+const string asset_builder::asset_type(const fs::path& path)
+{
+	if (empty())
+		return "unknown";
+
 	const auto& current_level = tex_mapping_context_stack.top();
 	for_e(entry, current_level)
 	{
-		if (regex_match(p.filename().string(), entry.match_regex))
+		if (regex_match(path.filename().string(), entry.match_regex))
 		{
 			return entry.name;
 		}
@@ -358,3 +373,8 @@ const std::string asset_builder::asset_type(const std::filesystem::path& p)
 }
 
 bool asset_builder::empty() { return path_stack.size() == 0; }
+
+DXGI_FORMAT asset_builder::tex_analysis(const fs::path& p)
+{
+	return DXGI_FORMAT();
+}

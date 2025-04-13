@@ -87,6 +87,11 @@ int parse_args(int argc, char** argv)
 			.flag()
 			.help("Don't compress DDS textures");
 
+		program.add_argument("--preset")
+			.default_value(std::filesystem::path())
+			.action(argparse::filepath)
+			.help("Input preset to use");
+
 		program.add_argument("directory")
 			.action(argparse::filepath)
 			.required()
@@ -95,16 +100,22 @@ int parse_args(int argc, char** argv)
 		program.parse_args(argc, argv);
 
 		auto directory          = program.get<filesystem::path>("directory");
+		auto preset             = program.get<filesystem::path>("--preset");
+		auto preset_is_used     = program.is_used("--preset");
 		auto max_dds_size       = program.get<int>("--max-dds-size");
 		auto min_dds_size       = program.get<int>("--min-dds-size");
 		auto threads            = program.get<int>("--threads");
 		auto no_dds_compression = program.get<bool>("--no-dds-compression");
 		auto dryrun             = program.get<bool>("--dryrun");
 
-		register_assets(directory);
+		if (preset_is_used)
+			register_assets(directory, preset);
+		else
+			register_assets(directory);
 
 		dbg(foo());
 		dbg(max_dds_size);
+		dbg(preset_is_used);
 		dbg(min_dds_size);
 		dbg(threads);
 		dbg(no_dds_compression);

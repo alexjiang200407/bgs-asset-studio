@@ -12,6 +12,13 @@ namespace ns
 		DXGI_FORMAT opaque_format      = DXGI_FORMAT_UNKNOWN;
 		DXGI_FORMAT transparent_format = DXGI_FORMAT_UNKNOWN;
 	};
+
+	struct asset_studio_meta
+	{
+		std::string                  name;
+		std::vector<ns::tex_mapping> mappings;
+	};
+
 }
 
 class asset_builder
@@ -24,14 +31,13 @@ public:
 	};
 
 public:
-	void                         push(const std::filesystem::path& path);
-	void                         pop();
-	const std::filesystem::path& top();
-	const std::string            asset_type(const std::filesystem::path& path);
-	bool                         empty();
-	DXGI_FORMAT                  tex_analysis(const std::filesystem::path& path);
+	void               push(const std::filesystem::path& path);
+	void               pop() noexcept;
+	const std::string& preset_name() noexcept;
+	const std::string  asset_type(const std::filesystem::path& path) noexcept;
+	bool               empty() noexcept;
+	DXGI_FORMAT        tex_analysis(const std::filesystem::path& path);
 
 private:
-	std::stack<std::filesystem::path>        path_stack;
-	std::stack<std::vector<ns::tex_mapping>> tex_mapping_context_stack;
+	std::stack<ns::asset_studio_meta> tex_mapping_context_stack;
 };

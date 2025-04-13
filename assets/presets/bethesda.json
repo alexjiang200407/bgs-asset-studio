@@ -1,0 +1,29 @@
+{
+  "name": "bethesda-default",
+  "tex-types": [
+    {
+      "name": "normal",
+      "regex": "^.*(_n|_msn)\\.dds$",
+      "dxgi-format-opaque": "DXGI_FORMAT_BC7_UNORM",
+      "dxgi-format-transparent": "DXGI_FORMAT_BC7_UNORM"
+    },
+    {
+      "name": "glow",
+      "regex": "^.*_g\\.dds$",
+      "dxgi-format-opaque": "BC1_UNORM",
+      "dxgi-format-transparent": "BC7_UNORM"
+    },
+    {
+      "name": "metallic",
+      "regex": "^.*_m\\.dds$",
+      "dxgi-format-opaque": "BC4_SNORM",
+      "dxgi-format-transparent": "BC4_UNORM"
+    },
+    {
+      "name": "diffuse",
+      "regex": "^.*\\.dds$",
+      "dxgi-format-opaque": "BC1_UNORM_SRGB",
+      "dxgi-format-transparent": "BC7_UNORM_SRGB"
+    }
+  ]
+}

@@ -1,34 +1,29 @@
 #include "BGSAssetStudioLIB.h"
 #include "asset_builder.h"
 #include <spdlog/sinks/basic_file_sink.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 
 using namespace std;
 namespace fs = std::filesystem;
 
-fs::path get_executable_directory()
-{
-	char buffer[MAX_PATH];
-	GetModuleFileNameA(NULL, buffer, MAX_PATH);
-	return fs::path(buffer).parent_path();
-}
-
 LIBRARY_API const char* foo() { return "Hello World!"; }
 
 LIBRARY_API void init_log()
 {
-	auto path = get_executable_directory() / "bgs-asset-studio.log";
-	auto sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(path.string(), true);
+	auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+	auto file_sink    = std::make_shared<spdlog::sinks::basic_file_sink_mt>("log.txt", true);
 
-	auto log = std::make_shared<spdlog::logger>("global log"s, std::move(sink));
+	std::vector<spdlog::sink_ptr> sinks{ console_sink, file_sink };
+	auto log = std::make_shared<spdlog::logger>("global log"s, sinks.begin(), sinks.end());
 
-	auto logLevel = spdlog::level::trace;
+	auto log_level = spdlog::level::info;
 
-	log->set_level(logLevel);
-	log->flush_on(logLevel);
+	log->set_level(log_level);
+	log->flush_on(log_level);
 
 	spdlog::set_default_logger(std::move(log));
-	spdlog::set_pattern("[%H:%M:%S:%e] %v"s);
+	spdlog::set_pattern("\x1b[33m[%Y-%m-%d %H:%M:%S]\x1b[0m [%^%l%$] [thread %t] %v"s);
 }
 
 LIBRARY_API void stop_log()
@@ -41,65 +36,72 @@ LIBRARY_API void stop_log()
 	spdlog::shutdown();
 }
 
-void visit_directory(const fs::path& root)
+void visit_directory(const fs::path& root, asset_builder& builder)
 {
 	try
 	{
-		asset_builder builder;
+		bool pop = false;
 
 		if (fs::exists(root / "bgs-asset-studio-meta.json"))
 		{
 			try
 			{
-				spdlog::info("Found new metadata file");
+				spdlog::trace("Found new metadata file");
 				builder.push(root / "bgs-asset-studio-meta.json");
+				pop = true;
 			}
 			catch (const asset_builder::exception& err)
 			{
 				spdlog::error("Error: {}", err.what());
-				spdlog::info("Continuing...");
 			}
 		}
 
-		int depth = 0;
-		for (const auto& entry : fs::recursive_directory_iterator(root))
+		for_e(entry, fs::directory_iterator(root))
 		{
 			if (entry.is_directory())
-			{
-				spdlog::info(
-					"Entered a new directory {} checking for {}",
-					entry.path().string(),
-					(entry.path() / "bgs-asset-studio-meta.json").string());
-				if (fs::exists(entry.path() / "bgs-asset-studio-meta.json"))
-				{
-					try
-					{
-						auto metadata_filepath = entry.path() / "bgs-asset-studio-meta.json";
-						spdlog::info("Found new metadata file {}", metadata_filepath.string());
-						builder.push(metadata_filepath);
-					}
-					catch (const asset_builder::exception& err)
-					{
-						spdlog::error("Error: {}", err.what());
-						spdlog::info("Continuing...");
-					}
-				}
-			}
+				visit_directory(entry.path(), builder);
 
 			if (!entry.is_directory())
 			{
-				spdlog::info(
+				spdlog::trace(
 					"using {} for {}",
-					builder.empty() ? "default" : builder.top().string(),
+					builder.empty() ? "default" : builder.preset_name(),
 					entry.path().string());
-				spdlog::info("Is of type {}", builder.asset_type(entry.path()));
+				spdlog::info(
+					"{} is of type {}",
+					entry.path().string(),
+					builder.asset_type(entry.path()));
 			}
 		}
+
+		if (pop)
+			builder.pop();
 	}
 	catch (const fs::filesystem_error& err)
 	{
-		std::cerr << "Error: " << err.what() << '\n';
+		spdlog::error(err.what());
 	}
 }
 
-LIBRARY_API void register_assets(filesystem::path dir) { visit_directory(dir); }
+LIBRARY_API void register_assets(filesystem::path dir, const fs::path& preset_path)
+{
+	asset_builder builder;
+
+	try
+	{
+		builder.push(preset_path);
+	}
+	catch (const asset_builder::exception& err)
+	{
+		spdlog::error("Could not add preset path: {}", err.what());
+	}
+
+	visit_directory(dir, builder);
+}
+
+LIBRARY_API void register_assets(filesystem::path dir)
+{
+	spdlog::warn("No default preset was used!");
+	asset_builder builder;
+	visit_directory(dir, builder);
+}

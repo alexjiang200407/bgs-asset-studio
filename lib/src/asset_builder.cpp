@@ -266,15 +266,11 @@ static const unordered_map<DXGI_FORMAT, string_view> str_to_format = {
 	ENUM_AND_STR(DXGI_FORMAT_FORCE_UINT),
 };
 
-
 static const unordered_map<TEX_ALPHA_MODE, string_view> alpha_mode_str = {
-	ENUM_AND_STR(TEX_ALPHA_MODE_UNKNOWN),
-	ENUM_AND_STR(TEX_ALPHA_MODE_STRAIGHT),
-	ENUM_AND_STR(TEX_ALPHA_MODE_PREMULTIPLIED),
-	ENUM_AND_STR(TEX_ALPHA_MODE_OPAQUE),
+	ENUM_AND_STR(TEX_ALPHA_MODE_UNKNOWN),       ENUM_AND_STR(TEX_ALPHA_MODE_STRAIGHT),
+	ENUM_AND_STR(TEX_ALPHA_MODE_PREMULTIPLIED), ENUM_AND_STR(TEX_ALPHA_MODE_OPAQUE),
 	ENUM_AND_STR(TEX_ALPHA_MODE_CUSTOM),
 };
-
 
 DXGI_FORMAT dxgi_format_from_str(const string& str) noexcept
 {
@@ -399,7 +395,6 @@ const string asset_builder::asset_type(const fs::path& path) noexcept
 
 bool asset_builder::empty() noexcept { return tex_mapping_context_stack.size() == 0; }
 
-
 unique_ptr<asset> asset_builder::build(const fs::path& path)
 {
 	if (empty())
@@ -412,20 +407,49 @@ unique_ptr<asset> asset_builder::build(const fs::path& path)
 	{
 		if (regex_match(name_wide, entry.match_regex))
 		{
+			DXGI_FORMAT    new_format;
+			wstring        file_path_buf = path.wstring();
+			const wchar_t* file_path_raw = file_path_buf.c_str();
+
 			TexMetadata metadata;
-			if (FAILED(GetMetadataFromDDSFile(
-					path.wstring().c_str(),
-					DDS_FLAGS::DDS_FLAGS_NONE,
-					metadata)))
+			if (FAILED(GetMetadataFromDDSFile(file_path_raw, DDS_FLAGS::DDS_FLAGS_NONE, metadata)))
 				throw asset_builder::exception(
-					"Couldn't get the metadata from DDS file {}." + path.string());
+					"Couldn't get the metadata from DDS file " + path.string());
 
 			spdlog::info("{}", dxgi_format_to_str(metadata.format));
 
 			auto alphamode = metadata.GetAlphaMode();
 
-			spdlog::info("{}", dxgi_alphamode_to_str(alphamode));
+			if (alphamode == TEX_ALPHA_MODE_OPAQUE)
+			{
+				new_format = entry.opaque_format;
+				spdlog::info("Is opaque: new format is {}", entry.opaque_format_str);
+			}
+			else
+			{
+				auto img_buf = make_unique<ScratchImage>();
+				if (FAILED(LoadFromDDSFile(
+						file_path_raw,
+						DDS_FLAGS::DDS_FLAGS_NONE,
+						&metadata,
+						*img_buf)))
+					throw asset_builder::exception("Couldn't load the DDS file " + path.string());
 
+				if (img_buf->IsAlphaAllOpaque())
+				{
+					new_format = entry.opaque_format;
+					spdlog::info("Alpha is all opaque: new format is {}", entry.opaque_format_str);
+				}
+				else
+				{
+					new_format = entry.transparent_format;
+					spdlog::info(
+						"Transparency detected: new format is {}",
+						entry.transparent_format_str);
+				}
+			}
+
+			spdlog::info("{}", dxgi_alphamode_to_str(alphamode));
 
 			return nullptr;
 		}

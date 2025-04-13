@@ -101,7 +101,6 @@ int parse_args(int argc, char** argv)
 		auto no_dds_compression = program.get<bool>("--no-dds-compression");
 		auto dryrun             = program.get<bool>("--dryrun");
 
-
 		register_assets(directory);
 
 		dbg(foo());

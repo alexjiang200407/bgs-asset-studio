@@ -1,6 +1,5 @@
 #pragma once
 
-
 LIBRARY_API const char* foo();
 
 LIBRARY_API void init_log();

@@ -1,4 +1,5 @@
 #include "asset_builder.h"
+#include "texture_asset.h"
 #include <nlohmann/json.hpp>
 
 using namespace nlohmann;
@@ -395,7 +396,9 @@ const string asset_builder::asset_type(const fs::path& path) noexcept
 
 bool asset_builder::empty() noexcept { return tex_mapping_context_stack.size() == 0; }
 
-unique_ptr<asset> asset_builder::build(const fs::path& path)
+asset_ptr create_texture_asset(const fs::path& path, const ns::tex_mapping& entry);
+
+asset_ptr asset_builder::build(const fs::path& path)
 {
 	if (empty())
 		return nullptr;
@@ -407,51 +410,7 @@ unique_ptr<asset> asset_builder::build(const fs::path& path)
 	{
 		if (regex_match(name_wide, entry.match_regex))
 		{
-			DXGI_FORMAT    new_format;
-			wstring        file_path_buf = path.wstring();
-			const wchar_t* file_path_raw = file_path_buf.c_str();
-
-			TexMetadata metadata;
-			if (FAILED(GetMetadataFromDDSFile(file_path_raw, DDS_FLAGS::DDS_FLAGS_NONE, metadata)))
-				throw asset_builder::exception(
-					"Couldn't get the metadata from DDS file " + path.string());
-
-			spdlog::info("{}", dxgi_format_to_str(metadata.format));
-
-			auto alphamode = metadata.GetAlphaMode();
-
-			if (alphamode == TEX_ALPHA_MODE_OPAQUE)
-			{
-				new_format = entry.opaque_format;
-				spdlog::info("Is opaque: new format is {}", entry.opaque_format_str);
-			}
-			else
-			{
-				auto img_buf = make_unique<ScratchImage>();
-				if (FAILED(LoadFromDDSFile(
-						file_path_raw,
-						DDS_FLAGS::DDS_FLAGS_NONE,
-						&metadata,
-						*img_buf)))
-					throw asset_builder::exception("Couldn't load the DDS file " + path.string());
-
-				if (img_buf->IsAlphaAllOpaque())
-				{
-					new_format = entry.opaque_format;
-					spdlog::info("Alpha is all opaque: new format is {}", entry.opaque_format_str);
-				}
-				else
-				{
-					new_format = entry.transparent_format;
-					spdlog::info(
-						"Transparency detected: new format is {}",
-						entry.transparent_format_str);
-				}
-			}
-
-			spdlog::info("{}", dxgi_alphamode_to_str(alphamode));
-
-			return nullptr;
+			return create_texture_asset(path, entry);
 		}
 	}
 
@@ -461,4 +420,46 @@ unique_ptr<asset> asset_builder::build(const fs::path& path)
 	}
 
 	return nullptr;
+}
+
+asset_ptr create_texture_asset(const fs::path& path, const ns::tex_mapping& entry)
+{
+	DXGI_FORMAT    new_format;
+	wstring        file_path_buf = path.wstring();
+	const wchar_t* file_path_raw = file_path_buf.c_str();
+
+	TexMetadata metadata;
+	if (FAILED(GetMetadataFromDDSFile(file_path_raw, DDS_FLAGS::DDS_FLAGS_NONE, metadata)))
+		throw asset_builder::exception("Couldn't get the metadata from DDS file " + path.string());
+
+	auto alphamode = metadata.GetAlphaMode();
+
+	if (alphamode == TEX_ALPHA_MODE_OPAQUE)
+	{
+		new_format = entry.opaque_format;
+		spdlog::info("Is opaque: new format is {}", entry.opaque_format_str);
+	}
+	else
+	{
+		auto img_buf = make_unique<ScratchImage>();
+		if (FAILED(LoadFromDDSFile(file_path_raw, DDS_FLAGS::DDS_FLAGS_NONE, &metadata, *img_buf)))
+			throw asset_builder::exception("Couldn't load the DDS file " + path.string());
+
+		if (img_buf->IsAlphaAllOpaque())
+		{
+			new_format = entry.opaque_format;
+			spdlog::info("Alpha is all opaque: new format is {}", entry.opaque_format_str);
+		}
+		else
+		{
+			new_format = entry.transparent_format;
+			spdlog::info("Transparency detected: new format is {}", entry.transparent_format_str);
+		}
+	}
+
+	return texture_asset::create(
+		{ metadata.width, metadata.height },
+		{ metadata.width, metadata.height },
+		new_format,
+		metadata.format);
 }

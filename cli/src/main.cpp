@@ -108,10 +108,12 @@ int parse_args(int argc, char** argv)
 		auto no_dds_compression = program.get<bool>("--no-dds-compression");
 		auto dryrun             = program.get<bool>("--dryrun");
 
+		std::set<asset_ptr> assets;
+
 		if (preset_is_used)
-			register_assets(directory, preset);
+			assets = register_assets(directory, preset);
 		else
-			register_assets(directory);
+			assets = register_assets(directory);
 
 		dbg(foo());
 		dbg(max_dds_size);

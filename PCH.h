@@ -70,7 +70,6 @@ typedef unsigned long long ull;
 #define for_e(it, container)     for (auto& it : container)
 #define all(container)           container.begin(), container.end()
 
-
 template <typename T, typename = void>
 struct is_iterable : std::false_type
 {};

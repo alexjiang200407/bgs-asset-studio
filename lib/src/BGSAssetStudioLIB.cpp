@@ -33,7 +33,7 @@ LIBRARY_API void stop_log()
 	spdlog::shutdown();
 }
 
-void visit_directory(const fs::path& root, asset_builder& builder)
+void visit_directory(const fs::path& root, asset_builder& builder, set<asset_ptr>& assets)
 {
 	try
 	{
@@ -56,7 +56,7 @@ void visit_directory(const fs::path& root, asset_builder& builder)
 		for_e(entry, fs::directory_iterator(root))
 		{
 			if (entry.is_directory())
-				visit_directory(entry.path(), builder);
+				visit_directory(entry.path(), builder, assets);
 
 			if (!entry.is_directory())
 			{
@@ -69,7 +69,10 @@ void visit_directory(const fs::path& root, asset_builder& builder)
 					entry.path().string(),
 					(char*)builder.asset_type(entry.path()).data());
 
-				builder.build(entry.path());
+				auto asset_ptr = builder.build(entry.path());
+
+				if (asset_ptr.get())
+					assets.insert(move(asset_ptr));
 			}
 		}
 
@@ -82,9 +85,10 @@ void visit_directory(const fs::path& root, asset_builder& builder)
 	}
 }
 
-LIBRARY_API void register_assets(filesystem::path dir, const fs::path& preset_path)
+LIBRARY_API set<asset_ptr> register_assets(const fs::path& dir, const fs::path& preset_path)
 {
-	asset_builder builder;
+	asset_builder  builder;
+	set<asset_ptr> assets;
 
 	try
 	{
@@ -95,12 +99,17 @@ LIBRARY_API void register_assets(filesystem::path dir, const fs::path& preset_pa
 		spdlog::error("Could not add preset path: {}", err.what());
 	}
 
-	visit_directory(dir, builder);
+	visit_directory(dir, builder, assets);
+
+	return assets;
 }
 
-LIBRARY_API void register_assets(filesystem::path dir)
+LIBRARY_API set<asset_ptr> register_assets(const fs::path& dir)
 {
+	set<asset_ptr> assets;
 	spdlog::warn("No default preset was used!");
 	asset_builder builder;
-	visit_directory(dir, builder);
+	visit_directory(dir, builder, assets);
+
+	return assets;
 }

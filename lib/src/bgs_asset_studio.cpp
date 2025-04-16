@@ -1,5 +1,6 @@
 #include "bgs_asset_studio.h"
 #include "asset_builder.h"
+#include "asset_registry_impl.h"
 
 using namespace std;
 namespace fs = std::filesystem;
@@ -85,7 +86,7 @@ void visit_directory(const fs::path& root, asset_builder& builder, set<asset_ptr
 	}
 }
 
-LIBRARY_API set<asset_ptr> register_assets(const fs::path& dir, const fs::path& preset_path)
+LIBRARY_API asset_registry_handle register_assets(const fs::path& dir, const fs::path& preset_path)
 {
 	asset_builder  builder;
 	set<asset_ptr> assets;
@@ -101,15 +102,15 @@ LIBRARY_API set<asset_ptr> register_assets(const fs::path& dir, const fs::path& 
 
 	visit_directory(dir, builder, assets);
 
-	return assets;
+	return asset_registry_handle(new asset_registry_impl(move(assets)));
 }
 
-LIBRARY_API set<asset_ptr> register_assets(const fs::path& dir)
+LIBRARY_API asset_registry_handle register_assets(const fs::path& dir)
 {
 	set<asset_ptr> assets;
 	spdlog::warn("No default preset was used!");
 	asset_builder builder;
 	visit_directory(dir, builder, assets);
 
-	return assets;
+	return asset_registry_handle(new asset_registry_impl(move(assets)));
 }

@@ -1,5 +1,5 @@
-#include "bgs_asset_studio.h"
 #include "arg_actions.h"
+#include "bgs_asset_studio.h"
 #include <argparse/argparse.hpp>
 
 #ifdef MEMORY_LEAK_CHECK
@@ -106,7 +106,7 @@ int parse_args(int argc, char** argv)
 		auto no_dds_compression = program.get<bool>("--no-dds-compression");
 		auto dryrun             = program.get<bool>("--dryrun");
 
-		std::set<asset_ptr> assets;
+		unique_ptr<asset_registry> assets;
 
 		if (preset_is_used)
 			assets = register_assets(directory, preset);

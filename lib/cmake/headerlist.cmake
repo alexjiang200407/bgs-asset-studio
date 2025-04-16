@@ -1,7 +1,9 @@
 set(HEADERS
-	include/asset.h
+	include/asset_registry.h
 	include/bgs_asset_studio.h
 	PCH.h
+	src/asset.h
 	src/asset_builder.h
+	src/asset_registry_impl.h
 	src/texture_asset.h
 )

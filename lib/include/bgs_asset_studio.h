@@ -1,5 +1,5 @@
 #pragma once
-#include "asset.h"
+#include "asset_registry.h"
 
 LIBRARY_API const char* foo();
 
@@ -7,7 +7,9 @@ LIBRARY_API void init_log();
 
 LIBRARY_API void stop_log();
 
-LIBRARY_API std::set<asset_ptr>
+LIBRARY_API asset_registry_handle
 	register_assets(const std::filesystem::path& dir, const std::filesystem::path& preset_path);
 
-LIBRARY_API std::set<asset_ptr> register_assets(const std::filesystem::path& dir);
+LIBRARY_API asset_registry_handle register_assets(const std::filesystem::path& dir);
+
+LIBRARY_API void process_assets(const asset_registry& assets);

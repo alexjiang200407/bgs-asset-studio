@@ -1,4 +1,4 @@
-#include "BGSAssetStudioLIB.h"
+#include "bgs_asset_studio.h"
 #include "arg_actions.h"
 #include <argparse/argparse.hpp>
 
@@ -57,8 +57,6 @@ int parse_args(int argc, char** argv)
 		argparse::ArgumentParser program("bgs-asset-studio-cli");
 		program.set_usage_max_line_width(80);
 		program.set_usage_break_on_mutex();
-
-		program.add_argument("-h", "--help").help("Show help message").flag();
 
 		program.add_argument("--dryrun")
 			.flag()

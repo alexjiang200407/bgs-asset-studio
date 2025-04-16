@@ -1,4 +1,4 @@
-#include "BGSAssetStudioLIB.h"
+#include "bgs_asset_studio.h"
 #include "asset_builder.h"
 
 using namespace std;

@@ -1,3 +1,3 @@
 set(SOURCES
-	src/WinMain.cpp
+	src/win_main.cpp
 )

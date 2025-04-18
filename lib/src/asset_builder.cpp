@@ -398,7 +398,7 @@ bool asset_builder::empty() noexcept { return tex_mapping_context_stack.size() =
 
 asset_ptr create_texture_asset(const fs::path& path, const ns::tex_mapping& entry);
 
-asset_ptr asset_builder::build(const fs::path& path)
+asset_builder::task asset_builder::build(const fs::path& path)
 {
 	if (empty())
 		return nullptr;
@@ -410,7 +410,7 @@ asset_ptr asset_builder::build(const fs::path& path)
 	{
 		if (regex_match(name_wide, entry.match_regex))
 		{
-			return create_texture_asset(path, entry);
+			return [path, entry]() { return create_texture_asset(path, entry); };
 		}
 	}
 
@@ -458,6 +458,7 @@ asset_ptr create_texture_asset(const fs::path& path, const ns::tex_mapping& entr
 	}
 
 	return texture_asset::create(
+		path,
 		{ metadata.width, metadata.height },
 		{ metadata.width, metadata.height },
 		new_format,

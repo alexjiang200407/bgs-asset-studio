@@ -5,5 +5,6 @@ set(HEADERS
 	src/asset.h
 	src/asset_builder.h
 	src/asset_registry_impl.h
+	src/asset_worker.h
 	src/texture_asset.h
 )

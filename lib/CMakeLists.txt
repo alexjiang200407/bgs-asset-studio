@@ -33,7 +33,13 @@ target_compile_features(bgs-asset-studio-lib PRIVATE cxx_std_23)
 
 target_compile_definitions(bgs-asset-studio-lib PRIVATE LIBRARY_EXPORTS PUBLIC LIBRARY_EXPORTS)
 
-target_link_libraries(bgs-asset-studio-lib PRIVATE Microsoft::DirectXTex spdlog::spdlog nlohmann_json)
+target_link_libraries(
+	bgs-asset-studio-lib
+	PRIVATE
+		Microsoft::DirectXTex
+		spdlog::spdlog
+		nlohmann_json
+)
 
 target_include_directories(bgs-asset-studio-lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include

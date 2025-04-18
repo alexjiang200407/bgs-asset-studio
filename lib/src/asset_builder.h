@@ -25,6 +25,9 @@ namespace ns
 class asset_builder
 {
 public:
+	using task = std::function<asset_ptr()>;
+
+public:
 	class exception : public std::runtime_error
 	{
 	public:
@@ -37,7 +40,7 @@ public:
 	const std::string& preset_name() noexcept;
 	const std::string  asset_type(const std::filesystem::path& path) noexcept;
 	bool               empty() noexcept;
-	asset_ptr          build(const std::filesystem::path& path);
+	task               build(const std::filesystem::path& path);
 
 private:
 	std::stack<ns::asset_studio_meta> tex_mapping_context_stack;

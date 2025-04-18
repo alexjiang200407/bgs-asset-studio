@@ -1,7 +1,7 @@
 #pragma once
 
 class asset;
-typedef std::unique_ptr<asset> asset_ptr;
+typedef std::shared_ptr<asset> asset_ptr;
 
 class asset
 {
@@ -14,13 +14,16 @@ public:
 		ANIMATION,
 	};
 
-	asset(type asset_type);
+	asset(type asset_type, const std::filesystem::path& path);
 
 	bool operator<(const asset& rhs) const;
 	bool operator==(const asset& rhs) const;
 
-private:
-	type asset_type;
+	virtual void process() const = 0;
+
+protected:
+	std::filesystem::path path;
+	type                  asset_type;
 };
 
 bool operator<(const asset_ptr& lhs, const asset_ptr& rhs);

@@ -1,9 +1,11 @@
 #include "bgs_asset_studio.h"
 #include "asset_builder.h"
 #include "asset_registry_impl.h"
+#include <concurrent_queue.h>
 
 using namespace std;
 namespace fs = std::filesystem;
+using namespace concurrency;
 
 LIBRARY_API const char* foo() { return "Hello World!"; }
 
@@ -34,7 +36,10 @@ LIBRARY_API void stop_log()
 	spdlog::shutdown();
 }
 
-void visit_directory(const fs::path& root, asset_builder& builder, set<asset_ptr>& assets)
+void visit_directory(
+	const fs::path&                        root,
+	asset_builder&                         builder,
+	concurrent_queue<asset_builder::task>& tasks)
 {
 	try
 	{
@@ -57,7 +62,7 @@ void visit_directory(const fs::path& root, asset_builder& builder, set<asset_ptr
 		for_e(entry, fs::directory_iterator(root))
 		{
 			if (entry.is_directory())
-				visit_directory(entry.path(), builder, assets);
+				visit_directory(entry.path(), builder, tasks);
 
 			if (!entry.is_directory())
 			{
@@ -65,15 +70,10 @@ void visit_directory(const fs::path& root, asset_builder& builder, set<asset_ptr
 					"using {} for {}",
 					builder.empty() ? "default" : (char*)builder.preset_name().data(),
 					entry.path().string());
-				spdlog::info(
-					"{} is of type {}",
-					entry.path().string(),
-					(char*)builder.asset_type(entry.path()).data());
 
-				auto asset_ptr = builder.build(entry.path());
-
-				if (asset_ptr.get())
-					assets.insert(move(asset_ptr));
+				auto build_task = builder.build(entry.path());
+				if (build_task)
+					tasks.push(build_task);
 			}
 		}
 
@@ -86,10 +86,49 @@ void visit_directory(const fs::path& root, asset_builder& builder, set<asset_ptr
 	}
 }
 
-LIBRARY_API asset_registry_handle register_assets(const fs::path& dir, const fs::path& preset_path)
+void handle_build_tasks(
+	concurrent_queue<asset_builder::task>& tasks,
+	const unique_ptr<asset_registry_impl>& assets,
+	size_t                                 num_threads)
 {
-	asset_builder  builder;
-	set<asset_ptr> assets;
+	std::vector<std::thread> threads;
+
+	auto worker_func = [&]() {
+		asset_builder::task task;
+		while (true)
+		{
+			if (tasks.try_pop(task))
+			{
+				assets->insert(task());
+			}
+			else
+			{
+				spdlog::info("Finished");
+				break;
+			}
+		}
+	};
+
+	for (size_t i = 0; i < num_threads; i++)
+	{
+		threads.emplace_back(worker_func);
+	}
+
+	for (auto& t : threads)
+	{
+		if (t.joinable())
+		{
+			t.join();
+		}
+	}
+}
+
+LIBRARY_API asset_registry_handle
+	register_assets(const fs::path& dir, const fs::path& preset_path, size_t num_threads)
+{
+	asset_builder                         builder;
+	unique_ptr<asset_registry_impl>       assets = make_unique<asset_registry_impl>();
+	concurrent_queue<asset_builder::task> build_tasks;
 
 	try
 	{
@@ -100,17 +139,21 @@ LIBRARY_API asset_registry_handle register_assets(const fs::path& dir, const fs:
 		spdlog::error("Could not add preset path: {}", err.what());
 	}
 
-	visit_directory(dir, builder, assets);
+	visit_directory(dir, builder, build_tasks);
+	handle_build_tasks(build_tasks, assets, num_threads);
 
-	return asset_registry_handle(new asset_registry_impl(move(assets)));
+	return move(assets);
 }
 
-LIBRARY_API asset_registry_handle register_assets(const fs::path& dir)
+LIBRARY_API asset_registry_handle register_assets(const fs::path& dir, size_t num_threads)
 {
-	set<asset_ptr> assets;
+	unique_ptr<asset_registry_impl>       assets = make_unique<asset_registry_impl>();
+	concurrent_queue<asset_builder::task> build_tasks;
+
 	spdlog::warn("No default preset was used!");
 	asset_builder builder;
-	visit_directory(dir, builder, assets);
+	visit_directory(dir, builder, build_tasks);
+	handle_build_tasks(build_tasks, assets, num_threads);
 
-	return asset_registry_handle(new asset_registry_impl(move(assets)));
+	return move(assets);
 }

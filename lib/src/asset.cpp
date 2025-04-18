@@ -1,6 +1,9 @@
 #include "asset.h"
 
-asset::asset(type asset_type) : asset_type(asset_type) {}
+using namespace std;
+namespace fs = filesystem;
+
+asset::asset(type asset_type, const fs::path& path) : asset_type(asset_type), path(path) {}
 
 bool asset::operator<(const asset& rhs) const { return this->asset_type < rhs.asset_type; }
 

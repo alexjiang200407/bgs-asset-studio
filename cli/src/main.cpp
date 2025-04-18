@@ -75,10 +75,10 @@ int parse_args(int argc, char** argv)
 			.help("Minimum texture size. Set to 0 to skip upscaling");
 
 		program.add_argument("--threads")
-			.action(argparse::range("threads", 0, 64))
-			.default_value(0)
-			.metavar("[0-64]")
-			.help("Number of threads to use, 0 to automatically calculate");
+			.action(argparse::range("threads", 1, 64))
+			.default_value(max(1, int(std::thread::hardware_concurrency() - 2)))
+			.metavar("[1-64]")
+			.help("Number of threads to use, leave empty to automatically calculate");
 
 		program.add_argument("--no-dds-compression")
 			.default_value(false)
@@ -109,9 +109,12 @@ int parse_args(int argc, char** argv)
 		unique_ptr<asset_registry> assets;
 
 		if (preset_is_used)
-			assets = register_assets(directory, preset);
+			assets = register_assets(directory, preset, threads);
 		else
-			assets = register_assets(directory);
+			assets = register_assets(directory, threads);
+
+		if (!dryrun)
+			assets->process_all(threads);
 
 		dbg(foo());
 		dbg(max_dds_size);

@@ -14,7 +14,14 @@ void asset_registry_impl::process_all(size_t num_threads)
 		{
 			if (this->assets.try_pop(asset))
 			{
-				asset->process();
+				try
+				{
+					asset->process();
+				}
+				catch (const std::exception& err)
+				{
+					spdlog::error("{}", err.what());
+				}
 			}
 			else
 			{

@@ -434,6 +434,8 @@ asset_ptr create_texture_asset(const fs::path& path, const ns::tex_mapping& entr
 
 	auto alphamode = metadata.GetAlphaMode();
 
+	spdlog::info("Old format {}", dxgi_format_to_str(metadata.format));
+
 	if (alphamode == TEX_ALPHA_MODE_OPAQUE)
 	{
 		new_format = entry.opaque_format;

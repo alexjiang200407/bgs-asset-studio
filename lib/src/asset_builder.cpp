@@ -1,4 +1,5 @@
 #include "asset_builder.h"
+#include "hr_exception.h"
 #include "texture_asset.h"
 #include <nlohmann/json.hpp>
 
@@ -6,6 +7,9 @@ using namespace nlohmann;
 using namespace std;
 using namespace DirectX;
 namespace fs = filesystem;
+
+static constexpr float opaque_alpha_threshold = 0.95;
+
 
 #define ENUM_AND_STR(val) \
 	{                     \
@@ -422,19 +426,56 @@ asset_builder::task asset_builder::build(const fs::path& path)
 	return nullptr;
 }
 
+
+HRESULT analyze(const Image& image, XMFLOAT4& result)
+{
+	XMVECTOR minv      = g_XMFltMax;
+	XMVECTOR maxv      = XMVectorNegate(g_XMFltMax);
+	XMVECTOR acc       = g_XMZero;
+	XMVECTOR luminance = g_XMZero;
+
+	size_t totalPixels = 0;
+
+	HRESULT hr = EvaluateImage(image, [&](const XMVECTOR* pixels, size_t width, size_t y) {
+		static const XMVECTORF32 s_luminance = { { { 0.3f, 0.59f, 0.11f, 0.f } } };
+
+		UNREFERENCED_PARAMETER(y);
+
+		for (size_t x = 0; x < width; ++x)
+		{
+			const XMVECTOR v = *pixels++;
+			minv             = XMVectorMin(minv, v);
+			++totalPixels;
+		}
+	});
+	if (FAILED(hr))
+		return hr;
+
+	if (!totalPixels)
+		return S_FALSE;
+
+	XMStoreFloat4(&result, minv);
+
+	if (FAILED(hr))
+		return hr;
+
+	return S_OK;
+}
+
 asset_ptr create_texture_asset(const fs::path& path, const ns::tex_mapping& entry)
 {
 	DXGI_FORMAT    new_format;
+	const string   path_str      = path.string();
 	wstring        file_path_buf = path.wstring();
 	const wchar_t* file_path_raw = file_path_buf.c_str();
 
 	TexMetadata metadata;
 	if (FAILED(GetMetadataFromDDSFile(file_path_raw, DDS_FLAGS::DDS_FLAGS_NONE, metadata)))
-		throw asset_builder::exception("Couldn't get the metadata from DDS file " + path.string());
+		throw asset_builder::exception("Couldn't get the metadata from DDS file " + path_str);
 
 	auto alphamode = metadata.GetAlphaMode();
 
-	spdlog::info("Old format {}", dxgi_format_to_str(metadata.format));
+	spdlog::info("Old format {}: {}", dxgi_format_to_str(metadata.format), path_str);
 
 	if (alphamode == TEX_ALPHA_MODE_OPAQUE)
 	{
@@ -445,17 +486,28 @@ asset_ptr create_texture_asset(const fs::path& path, const ns::tex_mapping& entr
 	{
 		auto img_buf = make_unique<ScratchImage>();
 		if (FAILED(LoadFromDDSFile(file_path_raw, DDS_FLAGS::DDS_FLAGS_NONE, &metadata, *img_buf)))
-			throw asset_builder::exception("Couldn't load the DDS file " + path.string());
+			throw asset_builder::exception("Couldn't load the DDS file " + path_str);
 
-		if (img_buf->IsAlphaAllOpaque())
+		XMFLOAT4 analysis;
+		if (FAILED(analyze(*img_buf->GetImage(0, 0, 0), analysis)))
+			throw asset_builder::exception("Analysis of DDS file failed " + path_str);
+
+		if (analysis.w >= opaque_alpha_threshold)
 		{
 			new_format = entry.opaque_format;
-			spdlog::info("Alpha is all opaque: new format is {}", entry.opaque_format_str);
+			spdlog::info(
+				"Minimum alpha of {} which is opaque: new format is {} for {}",
+				analysis.w,
+				entry.opaque_format_str,
+				path_str);
 		}
 		else
 		{
 			new_format = entry.transparent_format;
-			spdlog::info("Transparency detected: new format is {}", entry.transparent_format_str);
+			spdlog::info(
+				"Transparency detected: new format is {} for {}",
+				entry.transparent_format_str,
+				path_str);
 		}
 	}
 

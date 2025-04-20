@@ -128,7 +128,7 @@ bool is_depth_stencil(DXGI_FORMAT fmt)
 	return false;
 }
 
-constexpr size_t CountMips(_In_ size_t width, _In_ size_t height) noexcept
+constexpr size_t count_mips(size_t width, size_t height) noexcept
 {
 	size_t mipLevels = 1;
 
@@ -148,7 +148,7 @@ constexpr size_t CountMips(_In_ size_t width, _In_ size_t height) noexcept
 
 constexpr static bool ispow2(size_t x) { return ((x != 0) && !(x & (x - 1))); }
 
-constexpr size_t CountMips3D(_In_ size_t width, _In_ size_t height, _In_ size_t depth) noexcept
+constexpr size_t count_mips_3D(size_t width, size_t height, size_t depth) noexcept
 {
 	size_t mipLevels = 1;
 
@@ -168,7 +168,9 @@ constexpr size_t CountMips3D(_In_ size_t width, _In_ size_t height, _In_ size_t 
 
 	return mipLevels;
 }
-bool GetDXGIFactory(_Outptr_ IDXGIFactory1** pFactory)
+
+
+bool get_dxgi_factory(IDXGIFactory1** pFactory)
 {
 	if (!pFactory)
 		return false;
@@ -194,7 +196,7 @@ bool GetDXGIFactory(_Outptr_ IDXGIFactory1** pFactory)
 	return SUCCEEDED(s_CreateDXGIFactory1(IID_PPV_ARGS(pFactory)));
 }
 
-bool CreateDevice(int adapter, _Outptr_ ID3D11Device** pDevice)
+bool create_device(int adapter, ID3D11Device** pDevice)
 {
 	if (!pDevice)
 		return false;
@@ -230,12 +232,12 @@ bool CreateDevice(int adapter, _Outptr_ ID3D11Device** pDevice)
 	if (adapter >= 0)
 	{
 		ComPtr<IDXGIFactory1> dxgiFactory;
-		if (GetDXGIFactory(dxgiFactory.GetAddressOf()))
+		if (get_dxgi_factory(dxgiFactory.GetAddressOf()))
 		{
 			if (FAILED(
 					dxgiFactory->EnumAdapters(static_cast<UINT>(adapter), pAdapter.GetAddressOf())))
 			{
-				wprintf(L"\nERROR: Invalid GPU adapter index (%d)!\n", adapter);
+				spdlog::error("Invalid GPU adapter index {}", adapter);
 				return false;
 			}
 		}
@@ -290,10 +292,10 @@ bool CreateDevice(int adapter, _Outptr_ ID3D11Device** pDevice)
 				hr = pAdapter->GetDesc(&desc);
 				if (SUCCEEDED(hr))
 				{
-					wprintf(
-						L"\n[Using DirectCompute %ls on \"%ls\"]\n",
-						(fl >= D3D_FEATURE_LEVEL_11_0) ? L"5.0" : L"4.0",
-						desc.Description);
+					spdlog::info(
+						"\n[Using DirectCompute {} on \"{}\"]",
+						(fl >= D3D_FEATURE_LEVEL_11_0) ? "5.0" : "4.0",
+						(char*)desc.Description);
 				}
 			}
 		}
@@ -387,6 +389,7 @@ void texture_asset::process() const
 	HRESULT              hr;
 	TEX_FILTER_FLAGS     dwFilter              = TEX_FILTER_DEFAULT;
 	TEX_FILTER_FLAGS     dwSRGB                = TEX_FILTER_DEFAULT;
+	TEX_FILTER_FLAGS     dwFilterOpts          = TEX_FILTER_DEFAULT;
 	TEX_FILTER_FLAGS     dwConvert             = TEX_FILTER_DEFAULT;
 	TEX_COMPRESS_FLAGS   dwCompress            = TEX_COMPRESS_DEFAULT;
 	bool                 preserveAlphaCoverage = false;
@@ -445,7 +448,7 @@ void texture_asset::process() const
 
 		image.swap(timage);
 	}
-	const DXGI_FORMAT tformat = (format == DXGI_FORMAT_UNKNOWN) ? info.format : format;
+	DXGI_FORMAT tformat = (format == DXGI_FORMAT_UNKNOWN) ? info.format : format;
 
 	std::unique_ptr<ScratchImage> cimage;
 	if (IsCompressed(info.format))
@@ -526,8 +529,8 @@ void texture_asset::process() const
 		if (tMips > 0)
 		{
 			const size_t maxMips = (info.depth > 1) ?
-			                           CountMips3D(info.width, info.height, info.depth) :
-			                           CountMips(info.width, info.height);
+			                           count_mips_3D(info.width, info.height, info.depth) :
+			                           count_mips(info.width, info.height);
 
 			if (tMips > maxMips)
 			{
@@ -589,23 +592,12 @@ void texture_asset::process() const
 		// Also required for preserve alpha coverage so that existing mips are regenerated
 
 		std::unique_ptr<ScratchImage> timage(new (std::nothrow) ScratchImage);
-		if (!timage)
-		{
-			//wprintf(L"\nERROR: Memory allocation failed\n");
-			//return 1;
-		}
 
 		TexMetadata mdata = info;
 		mdata.mipLevels   = 1;
-		hr                = timage->Initialize(mdata);
-		if (FAILED(hr))
-		{
-			//wprintf(
-			//	L" FAILED [copy to single level] (%08X%ls)\n",
-			//	static_cast<unsigned int>(hr),
-			//	GetErrorDesc(hr));
-			//return 1;
-		}
+		THROW_HR_EXCEPTION(
+			timage->Initialize(mdata),
+			"Failed to initialize metadata for file " + path.string());
 
 		if (info.dimension == TEX_DIMENSION_TEXTURE3D)
 		{
@@ -618,14 +610,6 @@ void texture_asset::process() const
 					TEX_FILTER_DEFAULT,
 					0,
 					0);
-				if (FAILED(hr))
-				{
-					//wprintf(
-					//	L" FAILED [copy to single level] (%08X%ls)\n",
-					//	static_cast<unsigned int>(hr),
-					//	GetErrorDesc(hr));
-					//return 1;
-				}
 			}
 		}
 		else
@@ -639,16 +623,9 @@ void texture_asset::process() const
 					TEX_FILTER_DEFAULT,
 					0,
 					0);
-				if (FAILED(hr))
-				{
-					//wprintf(
-					//	L" FAILED [copy to single level] (%08X%ls)\n",
-					//	static_cast<unsigned int>(hr),
-					//	GetErrorDesc(hr));
-					//return 1;
-				}
 			}
 		}
+		THROW_HR_EXCEPTION(hr, "Failed to copy rectangle for file " + path.string());
 
 		image.swap(timage);
 		info.mipLevels = 1;
@@ -658,15 +635,9 @@ void texture_asset::process() const
 			// Special case for trimming mips off compressed images and keeping the original compressed highest level mip
 			mdata           = cimage->GetMetadata();
 			mdata.mipLevels = 1;
-			hr              = timage->Initialize(mdata);
-			if (FAILED(hr))
-			{
-				//wprintf(
-				//	L" FAILED [copy compressed to single level] (%08X%ls)\n",
-				//	static_cast<unsigned int>(hr),
-				//	GetErrorDesc(hr));
-				//return 1;
-			}
+			THROW_HR_EXCEPTION(
+				timage->Initialize(mdata),
+				"Failed to initialize metadata for file " + path.string());
 
 			if (mdata.dimension == TEX_DIMENSION_TEXTURE3D)
 			{
@@ -697,59 +668,47 @@ void texture_asset::process() const
 		}
 	}
 
-	//if ((!tMips || info.mipLevels != tMips) &&
-	//    (info.width > 1 || info.height > 1 || info.depth > 1))
-	//{
-	//	std::unique_ptr<ScratchImage> timage(new (std::nothrow) ScratchImage);
-	//	if (!timage)
-	//	{
-	//		wprintf(L"\nERROR: Memory allocation failed\n");
-	//		return 1;
-	//	}
+	if ((!tMips || info.mipLevels != tMips) &&
+	    (info.width > 1 || info.height > 1 || info.depth > 1))
+	{
+		std::unique_ptr<ScratchImage> timage(new (std::nothrow) ScratchImage);
 
-	//	if (info.dimension == TEX_DIMENSION_TEXTURE3D)
-	//	{
-	//		hr = GenerateMipMaps3D(
-	//			image->GetImages(),
-	//			image->GetImageCount(),
-	//			image->GetMetadata(),
-	//			dwFilter3D | dwFilterOpts,
-	//			tMips,
-	//			*timage);
-	//	}
-	//	else
-	//	{
-	//		hr = GenerateMipMaps(
-	//			image->GetImages(),
-	//			image->GetImageCount(),
-	//			image->GetMetadata(),
-	//			dwFilter | dwFilterOpts,
-	//			tMips,
-	//			*timage);
-	//	}
-	//	if (FAILED(hr))
-	//	{
-	//		wprintf(
-	//			L" FAILED [mipmaps] (%08X%ls)\n",
-	//			static_cast<unsigned int>(hr),
-	//			GetErrorDesc(hr));
-	//		return 1;
-	//	}
+		if (info.dimension == TEX_DIMENSION_TEXTURE3D)
+		{
+			hr = GenerateMipMaps3D(
+				image->GetImages(),
+				image->GetImageCount(),
+				image->GetMetadata(),
+				dwFilter3D | dwFilterOpts | TEX_FILTER_FORCE_NON_WIC,
+				tMips,
+				*timage);
+		}
+		else
+		{
+			hr = GenerateMipMaps(
+				image->GetImages(),
+				image->GetImageCount(),
+				image->GetMetadata(),
+				dwFilter | dwFilterOpts | TEX_FILTER_FORCE_NON_WIC,
+				tMips,
+				*timage);
+		}
+		THROW_HR_EXCEPTION(hr, "Failed to generate mipmaps for image " + path.string());
 
-	//	auto& tinfo    = timage->GetMetadata();
-	//	info.mipLevels = tinfo.mipLevels;
+		auto& tinfo    = timage->GetMetadata();
+		info.mipLevels = tinfo.mipLevels;
 
-	//	assert(info.width == tinfo.width);
-	//	assert(info.height == tinfo.height);
-	//	assert(info.depth == tinfo.depth);
-	//	assert(info.arraySize == tinfo.arraySize);
-	//	assert(info.miscFlags == tinfo.miscFlags);
-	//	assert(info.format == tinfo.format);
-	//	assert(info.dimension == tinfo.dimension);
+		assert(info.width == tinfo.width);
+		assert(info.height == tinfo.height);
+		assert(info.depth == tinfo.depth);
+		assert(info.arraySize == tinfo.arraySize);
+		assert(info.miscFlags == tinfo.miscFlags);
+		assert(info.format == tinfo.format);
+		assert(info.dimension == tinfo.dimension);
 
-	//	image.swap(timage);
-	//	cimage.reset();
-	//}
+		image.swap(timage);
+		cimage.reset();
+	}
 
 	if (dxt5nm || dxt5rxgb)
 	{
@@ -765,51 +724,39 @@ void texture_asset::process() const
 
 		if (dxt5nm)
 		{
-			hr = TransformImage(
-				image->GetImages(),
-				image->GetImageCount(),
-				image->GetMetadata(),
-				[=](XMVECTOR* outPixels, const XMVECTOR* inPixels, size_t w, size_t y) {
-					UNREFERENCED_PARAMETER(y);
+			THROW_HR_EXCEPTION(
+				TransformImage(
+					image->GetImages(),
+					image->GetImageCount(),
+					image->GetMetadata(),
+					[=](XMVECTOR* outPixels, const XMVECTOR* inPixels, size_t w, size_t y) {
+						UNREFERENCED_PARAMETER(y);
 
-					for (size_t j = 0; j < w; ++j)
-					{
-						outPixels[j] = XMVectorPermute<4, 1, 5, 0>(inPixels[j], g_XMIdentityR0);
-					}
-				},
-				*timage);
-			if (FAILED(hr))
-			{
-				//wprintf(
-				//	L" FAILED [DXT5nm] (%08X%ls)\n",
-				//	static_cast<unsigned int>(hr),
-				//	GetErrorDesc(hr));
-				//return 1;
-			}
+						for (size_t j = 0; j < w; ++j)
+						{
+							outPixels[j] = XMVectorPermute<4, 1, 5, 0>(inPixels[j], g_XMIdentityR0);
+						}
+					},
+					*timage),
+				"Failed to transform DXT5nm for file " + path.string());
 		}
 		else
 		{
-			hr = TransformImage(
-				image->GetImages(),
-				image->GetImageCount(),
-				image->GetMetadata(),
-				[=](XMVECTOR* outPixels, const XMVECTOR* inPixels, size_t w, size_t y) {
-					UNREFERENCED_PARAMETER(y);
+			THROW_HR_EXCEPTION(
+				TransformImage(
+					image->GetImages(),
+					image->GetImageCount(),
+					image->GetMetadata(),
+					[=](XMVECTOR* outPixels, const XMVECTOR* inPixels, size_t w, size_t y) {
+						UNREFERENCED_PARAMETER(y);
 
-					for (size_t j = 0; j < w; ++j)
-					{
-						outPixels[j] = XMVectorSwizzle<3, 1, 2, 0>(inPixels[j]);
-					}
-				},
-				*timage);
-			if (FAILED(hr))
-			{
-				//wprintf(
-				//	L" FAILED [DXT5 RXGB] (%08X%ls)\n",
-				//	static_cast<unsigned int>(hr),
-				//	GetErrorDesc(hr));
-				//return 1;
-			}
+						for (size_t j = 0; j < w; ++j)
+						{
+							outPixels[j] = XMVectorSwizzle<3, 1, 2, 0>(inPixels[j]);
+						}
+					},
+					*timage),
+				"Failed to transform DXT5 RXGB for file " + path.string());
 		}
 
 #ifndef NDEBUG
@@ -883,10 +830,10 @@ void texture_asset::process() const
 
 					if (!s_tryonce)
 					{
-						if (!CreateDevice(adapter, pDevice.GetAddressOf()))
-							wprintf(
-								L"\nWARNING: DirectCompute is not available, using BC6H / BC7 "
-								L"CPU codec\n");
+						if (!create_device(adapter, pDevice.GetAddressOf()))
+							spdlog::warn(
+								"WARNING: DirectCompute is not available, using BC6H / BC7 "
+								"CPU codec");
 					}
 				}
 				break;
@@ -897,10 +844,10 @@ void texture_asset::process() const
 
 			TEX_COMPRESS_FLAGS cflags = dwCompress;
 
-			//if ((img->width % 4) != 0 || (img->height % 4) != 0)
-			//{
-			//	non4bc = true;
-			//}
+			if ((img->width % 4) != 0 || (img->height % 4) != 0)
+			{
+				non4bc = true;
+			}
 
 			if (bc6hbc7 && pDevice)
 			{
@@ -918,15 +865,7 @@ void texture_asset::process() const
 			{
 				hr = Compress(img, nimg, info, tformat, cflags | dwSRGB, alphaThreshold, *timage);
 			}
-			if (FAILED(hr))
-			{
-				//wprintf(
-				//	L" FAILED [compress] (%08X%ls)\n",
-				//	static_cast<unsigned int>(hr),
-				//	GetErrorDesc(hr));
-				//retVal = 1;
-				//continue;
-			}
+			THROW_HR_EXCEPTION(hr, "Compression failed for file " + path.string());
 
 			auto& tinfo = timage->GetMetadata();
 
@@ -975,5 +914,7 @@ void texture_asset::process() const
 	assert(img);
 	const size_t nimg     = image->GetImageCount();
 	DDS_FLAGS    ddsFlags = DDS_FLAGS_NONE;
-	hr                    = SaveToDDSFile(img, nimg, info, ddsFlags, file_path_raw);
+	THROW_HR_EXCEPTION(
+		SaveToDDSFile(img, nimg, info, ddsFlags, file_path_raw),
+		"Failed to save to DDS file at " + path.string());
 }

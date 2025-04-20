@@ -2,6 +2,9 @@
 #include "bgs_asset_studio.h"
 #include <argparse/argparse.hpp>
 
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+
 #ifdef MEMORY_LEAK_CHECK
 #	define _CRTDBG_MAP_ALLOC
 #	include <crtdbg.h>
@@ -85,10 +88,9 @@ int parse_args(int argc, char** argv)
 			.flag()
 			.help("Don't compress DDS textures");
 
-		program.add_argument("--preset")
-			.default_value(std::filesystem::path())
-			.action(argparse::filepath)
-			.help("Input preset to use");
+		program.add_argument("--game-preset")
+			.default_value(std::string())
+			.help("Input game preset to use");
 
 		program.add_argument("directory")
 			.action(argparse::filepath)
@@ -98,8 +100,8 @@ int parse_args(int argc, char** argv)
 		program.parse_args(argc, argv);
 
 		auto directory          = program.get<filesystem::path>("directory");
-		auto preset             = program.get<filesystem::path>("--preset");
-		auto preset_is_used     = program.is_used("--preset");
+		auto game_preset        = program.get<string>("--game-preset");
+		auto preset_is_used     = program.is_used("--game-preset");
 		auto max_dds_size       = program.get<int>("--max-dds-size");
 		auto min_dds_size       = program.get<int>("--min-dds-size");
 		auto threads            = program.get<int>("--threads");
@@ -108,8 +110,15 @@ int parse_args(int argc, char** argv)
 
 		unique_ptr<asset_registry> assets;
 
-		if (preset_is_used)
-			assets = register_assets(directory, preset, threads);
+		char buf[1024];
+
+		if (preset_is_used && GetModuleFileName(NULL, buf, sizeof(buf)))
+		{
+			filesystem::path path = buf;
+			path                  = path.parent_path();
+			path                  = path / "presets" / (game_preset + ".json");
+			assets = register_assets(directory, path, threads);
+		}
 		else
 			assets = register_assets(directory, threads);
 

@@ -7,5 +7,5 @@
     "spdlog",
     "nlohmann-json"
   ],
-  "builtin-baseline": "b7601ed37e1e1ce11a4f61b4b94a23e39d465f1d"
+  "builtin-baseline": "0ca64b4e1c70fa6d9f53b369b8f3f0843797c20c"
 }

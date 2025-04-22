@@ -1,5 +1,5 @@
 {
-  "name": "skyrim-se-performance",
+  "name": "bethesda-default",
   "tex-mappings": [
     {
       "name": "normal",
@@ -16,14 +16,14 @@
     {
       "name": "metallic",
       "regex": "^.*_m\\.dds$",
-      "dxgi-format-opaque": "DXGI_FORMAT_BC7_UNORM",
-      "dxgi-format-transparent": "DXGI_FORMAT_BC7_UNORM"
+      "dxgi-format-opaque": "DXGI_FORMAT_BC4_SNORM",
+      "dxgi-format-transparent": "DXGI_FORMAT_BC4_UNORM"
     },
     {
       "name": "diffuse",
       "regex": "^.*\\.dds$",
       "dxgi-format-opaque": "DXGI_FORMAT_BC1_UNORM_SRGB",
-      "dxgi-format-transparent": "DXGI_FORMAT_BC3_UNORM"
+      "dxgi-format-transparent": "DXGI_FORMAT_BC7_UNORM_SRGB"
     }
   ]
 }

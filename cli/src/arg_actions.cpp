@@ -27,7 +27,7 @@ argparse_action<int> argparse::texture_sz(const string& arglabel)
 {
 	return [=](const string& value) {
 		static constexpr int MAX_TEXTURE_SIZE = 16384;
-		int                  num              = range(value, 0, MAX_TEXTURE_SIZE)(value);
+		int                  num              = range(value, 1, MAX_TEXTURE_SIZE)(value);
 
 		if ((num & (num - 1)) != 0)
 			throw runtime_error(arglabel + " must be to the power of 2");

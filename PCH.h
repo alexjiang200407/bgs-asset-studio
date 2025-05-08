@@ -29,6 +29,7 @@
 #include <cmath>
 #include <exception>
 #include <filesystem>
+#include <fstream>
 #include <functional>
 #include <initializer_list>
 #include <iomanip>
@@ -67,6 +68,7 @@ typedef unsigned long long ull;
 
 #define for_e_mut(it, container) for (const auto& it : container)
 #define for_e(it, container)     for (auto& it : container)
+#define all(container)           container.begin(), container.end()
 
 template <typename T, typename = void>
 struct is_iterable : std::false_type

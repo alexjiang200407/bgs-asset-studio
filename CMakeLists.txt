@@ -15,6 +15,16 @@ function(copy_dll_and_pdb_to_executable target_name dll_target)
     )
 endfunction()
 
+
+function(copy_assets target_name)
+    add_custom_command(
+        TARGET ${target_name} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/assets" $<TARGET_FILE_DIR:${target_name}>
+        COMMENT "Copying assets to the executable directory"
+    )
+endfunction()
+
+
 add_subdirectory(lib)
 add_subdirectory(gui)
 add_subdirectory(cli)

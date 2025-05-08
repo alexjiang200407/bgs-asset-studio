@@ -1,4 +1,4 @@
-#include "BGSAssetStudioLIB.h"
+#include "bgs_asset_studio.h"
 #include <Windows.h>
 
 #ifdef MEMORY_LEAK_CHECK

@@ -18,5 +18,6 @@ string get_hr_error(HRESULT hr)
 	return result;
 }
 
-hr_exception::hr_exception(HRESULT hr, const string& msg) : runtime_error(msg + " Reason: " + get_hr_error(hr))
+hr_exception::hr_exception(HRESULT hr, const string& msg) :
+	runtime_error(msg + " Reason: " + get_hr_error(hr))
 {}

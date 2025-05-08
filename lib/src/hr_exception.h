@@ -1,6 +1,6 @@
 #pragma once
 
-#define THROW_HR_EXCEPTION(hr, msg)      \
+#define THROW_HR_EXCEPTION(hr, msg) \
 	if (auto res = hr; FAILED(res)) \
 	throw hr_exception(hr, msg)
 

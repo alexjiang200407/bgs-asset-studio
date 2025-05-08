@@ -10,7 +10,6 @@ namespace fs = filesystem;
 
 static constexpr float opaque_alpha_threshold = 0.95;
 
-
 #define ENUM_AND_STR(val) \
 	{                     \
 		#val, val         \
@@ -425,7 +424,6 @@ asset_builder::task asset_builder::build(const fs::path& path)
 
 	return nullptr;
 }
-
 
 HRESULT analyze(const Image& image, XMFLOAT4& result)
 {

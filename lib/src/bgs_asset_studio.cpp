@@ -45,12 +45,12 @@ void visit_directory(
 	{
 		bool pop = false;
 
-		if (fs::exists(root / "bgs-asset-studio-meta.json"))
+		if (fs::exists(root / "bgs-asset-studio-override.json"))
 		{
 			try
 			{
-				spdlog::trace("Found new metadata file");
-				builder.push(root / "bgs-asset-studio-meta.json");
+				spdlog::trace("Found new override file");
+				builder.push(root / "bgs-asset-studio-override.json");
 				pop = true;
 			}
 			catch (const asset_builder::exception& err)

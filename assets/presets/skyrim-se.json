@@ -16,8 +16,8 @@
     {
       "name": "metallic",
       "regex": "^.*_m\\.dds$",
-      "dxgi-format-opaque": "DXGI_FORMAT_BC7_UNORM",
-      "dxgi-format-transparent": "DXGI_FORMAT_BC7_UNORM"
+      "dxgi-format-opaque": "DXGI_FORMAT_BC4_UNORM",
+      "dxgi-format-transparent": "DXGI_FORMAT_BC4_UNORM"
     },
     {
       "name": "diffuse",

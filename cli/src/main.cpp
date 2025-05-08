@@ -88,7 +88,7 @@ int parse_args(int argc, char** argv)
 			.flag()
 			.help("Don't compress DDS textures");
 
-		program.add_argument("--game-preset")
+		program.add_argument("--preset")
 			.default_value(std::string())
 			.help("Input game preset to use");
 
@@ -100,8 +100,8 @@ int parse_args(int argc, char** argv)
 		program.parse_args(argc, argv);
 
 		auto directory          = program.get<filesystem::path>("directory");
-		auto game_preset        = program.get<string>("--game-preset");
-		auto preset_is_used     = program.is_used("--game-preset");
+		auto game_preset        = program.get<string>("--preset");
+		auto preset_is_used     = program.is_used("--preset");
 		auto max_dds_size       = program.get<int>("--max-dds-size");
 		auto min_dds_size       = program.get<int>("--min-dds-size");
 		auto threads            = program.get<int>("--threads");
@@ -117,7 +117,7 @@ int parse_args(int argc, char** argv)
 			filesystem::path path = buf;
 			path                  = path.parent_path();
 			path                  = path / "presets" / (game_preset + ".json");
-			assets = register_assets(directory, path, threads);
+			assets                = register_assets(directory, path, threads);
 		}
 		else
 			assets = register_assets(directory, threads);

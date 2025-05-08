@@ -169,7 +169,6 @@ constexpr size_t count_mips_3D(size_t width, size_t height, size_t depth) noexce
 	return mipLevels;
 }
 
-
 bool get_dxgi_factory(IDXGIFactory1** pFactory)
 {
 	if (!pFactory)

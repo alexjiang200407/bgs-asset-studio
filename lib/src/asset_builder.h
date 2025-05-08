@@ -40,7 +40,7 @@ public:
 	const std::string& preset_name() noexcept;
 	const std::string  asset_type(const std::filesystem::path& path) noexcept;
 	bool               empty() noexcept;
-	task               build(const std::filesystem::path& path);
+	task               build(const std::filesystem::path& path, const size_t max_width_height);
 
 private:
 	std::stack<ns::asset_studio_meta> tex_mapping_context_stack;

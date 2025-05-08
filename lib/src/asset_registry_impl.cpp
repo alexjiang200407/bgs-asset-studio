@@ -1,5 +1,5 @@
 #include "asset_registry_impl.h"
-
+#include "hr_exception.h"
 using namespace std;
 
 void asset_registry_impl::insert(asset_ptr asset) { this->assets.push(asset); }
@@ -7,6 +7,7 @@ void asset_registry_impl::insert(asset_ptr asset) { this->assets.push(asset); }
 void asset_registry_impl::process_all(size_t num_threads)
 {
 	std::vector<std::thread> threads;
+	THROW_HR_EXCEPTION(CoInitializeEx(nullptr, COINIT_MULTITHREADED), "Could not initialize WIC");
 
 	auto worker_func = [&]() {
 		asset_ptr asset;
@@ -43,4 +44,6 @@ void asset_registry_impl::process_all(size_t num_threads)
 			t.join();
 		}
 	}
+
+	CoUninitialize();
 }

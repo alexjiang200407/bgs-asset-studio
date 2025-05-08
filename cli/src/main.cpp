@@ -67,26 +67,15 @@ int parse_args(int argc, char** argv)
 
 		program.add_argument("--max-dds-size")
 			.action(argparse::texture_sz("max-dds-size"))
-			.default_value(0)
-			.metavar("[0-16384]")
-			.help("Maximum dds texture size. Set to 0 to skip downscaling");
-
-		program.add_argument("--min-dds-size")
-			.action(argparse::texture_sz("min-dds-size"))
-			.default_value(0)
-			.metavar("[0-16384]")
-			.help("Minimum texture size. Set to 0 to skip upscaling");
+			.default_value(16384)
+			.metavar("[1-16384]")
+			.help("Maximum dds texture size. Empty to skip downscaling");
 
 		program.add_argument("--threads")
 			.action(argparse::range("threads", 1, 64))
 			.default_value(max(1, int(std::thread::hardware_concurrency() - 2)))
 			.metavar("[1-64]")
 			.help("Number of threads to use, leave empty to automatically calculate");
-
-		program.add_argument("--no-dds-compression")
-			.default_value(false)
-			.flag()
-			.help("Don't compress DDS textures");
 
 		program.add_argument("--preset")
 			.default_value(std::string())
@@ -99,14 +88,12 @@ int parse_args(int argc, char** argv)
 
 		program.parse_args(argc, argv);
 
-		auto directory          = program.get<filesystem::path>("directory");
-		auto game_preset        = program.get<string>("--preset");
-		auto preset_is_used     = program.is_used("--preset");
-		auto max_dds_size       = program.get<int>("--max-dds-size");
-		auto min_dds_size       = program.get<int>("--min-dds-size");
-		auto threads            = program.get<int>("--threads");
-		auto no_dds_compression = program.get<bool>("--no-dds-compression");
-		auto dryrun             = program.get<bool>("--dryrun");
+		auto directory      = program.get<filesystem::path>("directory");
+		auto game_preset    = program.get<string>("--preset");
+		auto preset_is_used = program.is_used("--preset");
+		auto max_dds_size   = program.get<int>("--max-dds-size");
+		auto threads        = program.get<int>("--threads");
+		auto dryrun         = program.get<bool>("--dryrun");
 
 		unique_ptr<asset_registry> assets;
 
@@ -117,10 +104,10 @@ int parse_args(int argc, char** argv)
 			filesystem::path path = buf;
 			path                  = path.parent_path();
 			path                  = path / "presets" / (game_preset + ".json");
-			assets                = register_assets(directory, path, threads);
+			assets                = register_assets(directory, path, threads, max_dds_size);
 		}
 		else
-			assets = register_assets(directory, threads);
+			assets = register_assets(directory, threads, max_dds_size);
 
 		if (!dryrun)
 			assets->process_all(threads);
@@ -128,9 +115,7 @@ int parse_args(int argc, char** argv)
 		dbg(foo());
 		dbg(max_dds_size);
 		dbg(preset_is_used);
-		dbg(min_dds_size);
 		dbg(threads);
-		dbg(no_dds_compression);
 		dbg(dryrun);
 		dbg(directory);
 	}

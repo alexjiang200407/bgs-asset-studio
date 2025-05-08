@@ -39,7 +39,8 @@ LIBRARY_API void stop_log()
 void visit_directory(
 	const fs::path&                        root,
 	asset_builder&                         builder,
-	concurrent_queue<asset_builder::task>& tasks)
+	concurrent_queue<asset_builder::task>& tasks,
+	const size_t                           max_width_height)
 {
 	try
 	{
@@ -62,7 +63,7 @@ void visit_directory(
 		for_e(entry, fs::directory_iterator(root))
 		{
 			if (entry.is_directory())
-				visit_directory(entry.path(), builder, tasks);
+				visit_directory(entry.path(), builder, tasks, max_width_height);
 
 			if (!entry.is_directory())
 			{
@@ -71,7 +72,7 @@ void visit_directory(
 					builder.empty() ? "default" : (char*)builder.preset_name().data(),
 					entry.path().string());
 
-				auto build_task = builder.build(entry.path());
+				auto build_task = builder.build(entry.path(), max_width_height);
 				if (build_task)
 					tasks.push(build_task);
 			}
@@ -123,8 +124,11 @@ void handle_build_tasks(
 	}
 }
 
-LIBRARY_API asset_registry_handle
-	register_assets(const fs::path& dir, const fs::path& preset_path, size_t num_threads)
+LIBRARY_API asset_registry_handle register_assets(
+	const fs::path& dir,
+	const fs::path& preset_path,
+	size_t          num_threads,
+	size_t          max_width_height)
 {
 	asset_builder                         builder;
 	unique_ptr<asset_registry_impl>       assets = make_unique<asset_registry_impl>();
@@ -139,20 +143,21 @@ LIBRARY_API asset_registry_handle
 		spdlog::error("Could not add preset path: {}", err.what());
 	}
 
-	visit_directory(dir, builder, build_tasks);
+	visit_directory(dir, builder, build_tasks, max_width_height);
 	handle_build_tasks(build_tasks, assets, num_threads);
 
 	return move(assets);
 }
 
-LIBRARY_API asset_registry_handle register_assets(const fs::path& dir, size_t num_threads)
+LIBRARY_API asset_registry_handle
+	register_assets(const fs::path& dir, size_t num_threads, const size_t max_width_height)
 {
 	unique_ptr<asset_registry_impl>       assets = make_unique<asset_registry_impl>();
 	concurrent_queue<asset_builder::task> build_tasks;
 
 	spdlog::warn("No default preset was used!");
 	asset_builder builder;
-	visit_directory(dir, builder, build_tasks);
+	visit_directory(dir, builder, build_tasks, max_width_height);
 	handle_build_tasks(build_tasks, assets, num_threads);
 
 	return move(assets);

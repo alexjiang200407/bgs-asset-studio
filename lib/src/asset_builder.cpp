@@ -399,9 +399,12 @@ const string asset_builder::asset_type(const fs::path& path) noexcept
 
 bool asset_builder::empty() noexcept { return tex_mapping_context_stack.size() == 0; }
 
-asset_ptr create_texture_asset(const fs::path& path, const ns::tex_mapping& entry);
+asset_ptr create_texture_asset(
+	const fs::path&        path,
+	const ns::tex_mapping& entry,
+	const size_t           max_width_height);
 
-asset_builder::task asset_builder::build(const fs::path& path)
+asset_builder::task asset_builder::build(const fs::path& path, const size_t max_width_height)
 {
 	if (empty())
 		return nullptr;
@@ -413,7 +416,9 @@ asset_builder::task asset_builder::build(const fs::path& path)
 	{
 		if (regex_match(name_wide, entry.match_regex))
 		{
-			return [path, entry]() { return create_texture_asset(path, entry); };
+			return [path, entry, max_width_height]() {
+				return create_texture_asset(path, entry, max_width_height);
+			};
 		}
 	}
 
@@ -460,7 +465,10 @@ HRESULT analyze(const Image& image, XMFLOAT4& result)
 	return S_OK;
 }
 
-asset_ptr create_texture_asset(const fs::path& path, const ns::tex_mapping& entry)
+asset_ptr create_texture_asset(
+	const fs::path&        path,
+	const ns::tex_mapping& entry,
+	const size_t           max_width_height)
 {
 	DXGI_FORMAT    new_format;
 	const string   path_str      = path.string();
@@ -509,9 +517,23 @@ asset_ptr create_texture_asset(const fs::path& path, const ns::tex_mapping& entr
 		}
 	}
 
+	size_t divider = 1;
+	size_t width = metadata.width, height = metadata.height;
+
+	if (metadata.width > metadata.height && metadata.width > max_width_height)
+	{
+		width  = max_width_height;
+		height = max_width_height * (metadata.height / metadata.width);
+	}
+	else if (metadata.height > max_width_height)
+	{
+		height = max_width_height;
+		width  = max_width_height * (metadata.width / metadata.height);
+	}
+
 	return texture_asset::create(
 		path,
-		{ metadata.width, metadata.height },
+		{ width, height },
 		{ metadata.width, metadata.height },
 		new_format,
 		metadata.format);

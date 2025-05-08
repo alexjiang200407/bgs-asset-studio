@@ -488,52 +488,55 @@ void texture_asset::process() const
 
 	// Undo Premultiplied Alpha?
 
-	size_t width  = size.first;
-	size_t height = size.second;
-
-	size_t twidth  = (!width) ? info.width : width;
-	size_t theight = (!height) ? info.height : height;
-
-	if (info.width != twidth || info.height != theight)
 	{
-		std::unique_ptr<ScratchImage> timage(new (std::nothrow) ScratchImage);
+		size_t width  = size.first;
+		size_t height = size.second;
 
-		THROW_HR_EXCEPTION(
-			Resize(
-				image->GetImages(),
-				image->GetImageCount(),
-				image->GetMetadata(),
-				twidth,
-				theight,
-				TEX_FILTER_DEFAULT,
-				*timage),
-			"Failed to resize " + path.string());
+		size_t twidth  = (!width) ? info.width : width;
+		size_t theight = (!height) ? info.height : height;
 
-		auto& tinfo = timage->GetMetadata();
-
-		assert(tinfo.width == twidth && tinfo.height == theight && tinfo.mipLevels == 1);
-		info.width     = tinfo.width;
-		info.height    = tinfo.height;
-		info.mipLevels = 1;
-
-		assert(info.depth == tinfo.depth);
-		assert(info.arraySize == tinfo.arraySize);
-		assert(info.miscFlags == tinfo.miscFlags);
-		assert(info.format == tinfo.format);
-		assert(info.dimension == tinfo.dimension);
-
-		image.swap(timage);
-		cimage.reset();
-
-		if (tMips > 0)
+		if (info.width != twidth || info.height != theight)
 		{
-			const size_t maxMips = (info.depth > 1) ?
-			                           count_mips_3D(info.width, info.height, info.depth) :
-			                           count_mips(info.width, info.height);
+			std::unique_ptr<ScratchImage> timage(new (std::nothrow) ScratchImage);
+			auto                          meta = image->GetMetadata();
 
-			if (tMips > maxMips)
+			THROW_HR_EXCEPTION(
+				Resize(
+					image->GetImages(),
+					image->GetImageCount(),
+					image->GetMetadata(),
+					twidth,
+					theight,
+					TEX_FILTER_BOX,
+					*timage),
+				"Failed to resize " + path.string());
+
+			auto& tinfo = timage->GetMetadata();
+
+			assert(tinfo.width == twidth && tinfo.height == theight && tinfo.mipLevels == 1);
+			info.width     = tinfo.width;
+			info.height    = tinfo.height;
+			info.mipLevels = 1;
+
+			assert(info.depth == tinfo.depth);
+			assert(info.arraySize == tinfo.arraySize);
+			assert(info.miscFlags == tinfo.miscFlags);
+			assert(info.format == tinfo.format);
+			assert(info.dimension == tinfo.dimension);
+
+			image.swap(timage);
+			cimage.reset();
+
+			if (tMips > 0)
 			{
-				tMips = maxMips;
+				const size_t maxMips = (info.depth > 1) ?
+				                           count_mips_3D(info.width, info.height, info.depth) :
+				                           count_mips(info.width, info.height);
+
+				if (tMips > maxMips)
+				{
+					tMips = maxMips;
+				}
 			}
 		}
 	}
